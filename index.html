@@ -648,6 +648,16 @@
   #cardlibgrid{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-top:14px; max-height:56vh; overflow-y:auto; padding:4px; }
   .setline{ margin-top:12px; font-size:13px; color:#a8c6d8; text-align:center; line-height:1.9; }
   .setline b{ color:#ffd76a; }
+  /* 卡面文字防遮挡：压缩图区与名牌高度，文字区居中，底部宝石下沉避让 */
+  .card .art{ height:106px; }
+  .card.big .art{ height:138px; }
+  .card .cname{ padding:4px 3px 1px; }
+  .card .ctext{ display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0 7px 11px; padding:5px 6px; line-height:1.42; }
+  .card .rgem{ bottom:-5px; }
+  .card.dense .art{ height:96px; }
+  .card.big.dense .art{ height:126px; }
+  .card.dense .ctext{ font-size:10px; line-height:1.36; padding:4px 5px; }
+  .deckgrid .card .art{ height:74px; }
 </style>
 </head>
 <body>
@@ -2126,6 +2136,7 @@ function cardEl(inst, opts = {}){
     : `<div style="position:absolute;inset:0;background:${d.grad}"></div>${fxOverlay}<span class="glyph">${d.glyph}</span>${badge}`;
   const el = document.createElement("div");
   el.className = "card " + d.rarity + (d.fused ? " fused" : "") + (inst.up ? " upgraded" : "") + (opts.big ? " big" : "");
+  if(cardText(inst).split("<br>").length >= 3) el.classList.add("dense");
   el.innerHTML = `${inst.up ? '<div class="uptag">强化 +</div>' : ""}<div class="cost">${d.cost}</div>
     <div class="frame"><div class="foil"></div><div class="art">${art}</div>
     <div class="cname">${d.name}${inst.up ? (EVOLVED_MEDIA[inst.id] ? " · 觉醒" : "+") : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.fused ? "FUSED" : d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
