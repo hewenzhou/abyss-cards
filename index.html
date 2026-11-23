@@ -1,0 +1,2107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>深渊牌局 · Abyss Card Roguelike</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; background:#05080b; overflow:hidden;
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; color:#e8eef2;
+    -webkit-user-select:none; user-select:none; }
+  #stage { position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center;
+    background:url('assets/bg.webp') center/cover no-repeat #0b0f14; overflow:hidden; border-radius:6px; }
+  #stage::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:linear-gradient(180deg, rgba(4,8,12,.5) 0%, rgba(4,8,12,0) 16%, rgba(4,8,12,0) 52%, rgba(3,6,9,.8) 100%); }
+  #acttint { position:absolute; inset:0; z-index:1; pointer-events:none; mix-blend-mode:overlay; opacity:0; transition:opacity .6s; }
+  .screen { position:absolute; inset:0; z-index:10; display:none; }
+  .screen.on { display:block; }
+  button { font-family:inherit; }
+
+  /* ---------- top bar ---------- */
+  #topbar { position:absolute; top:0; left:0; right:0; height:52px; z-index:20; display:flex; align-items:center;
+    justify-content:space-between; padding:0 18px; }
+  #logo { font-size:19px; font-weight:900; letter-spacing:4px; color:#f2e3bb; text-shadow:0 0 18px rgba(216,178,92,.45); }
+  #logo small { display:block; font-size:8.5px; letter-spacing:3.5px; color:#8fa3ad; font-weight:600; margin-top:1px; }
+  #floorinfo { font-size:13px; color:#cfe3ea; background:rgba(8,13,18,.55); border:1px solid rgba(140,200,220,.18);
+    padding:6px 16px; border-radius:20px; backdrop-filter:blur(6px); letter-spacing:1px; }
+  #floorinfo b { color:#5eead4; }
+  #topright { display:flex; gap:10px; align-items:center; font-size:13px; }
+  .tchip { background:rgba(8,13,18,.55); border:1px solid rgba(255,255,255,.1); padding:6px 12px; border-radius:20px; backdrop-filter:blur(6px); }
+  .tchip b { color:#f0d48a; }
+  #deckbtn { cursor:pointer; } #deckbtn:hover { border-color:rgba(240,212,138,.6); }
+
+  /* ---------- start screen ---------- */
+  #screen-start { z-index:30; background:radial-gradient(ellipse at 50% 120%, rgba(10,30,34,.25), rgba(3,6,9,.72) 75%); }
+  #startbox { position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); text-align:center; width:760px; }
+  #gametitle { font-size:74px; font-weight:900; letter-spacing:16px; color:#f5e7c1;
+    text-shadow:0 0 44px rgba(216,178,92,.5), 0 4px 0 rgba(90,64,14,.6); }
+  #gamesub { margin-top:8px; font-size:13px; letter-spacing:6px; color:#7fd8c8; }
+  #startdesc { margin:26px auto 0; width:520px; font-size:14px; line-height:1.9; color:#b9ccd6; }
+  .bigbtn { display:inline-block; margin-top:30px; padding:16px 58px; border:none; cursor:pointer; border-radius:14px;
+    font-size:19px; font-weight:900; letter-spacing:5px; color:#231a05;
+    background:linear-gradient(180deg,#ffe9a8,#d8a83e); box-shadow:0 5px 0 #8a6414, 0 14px 30px rgba(0,0,0,.5); }
+  .bigbtn:active { transform:translateY(3px); box-shadow:0 2px 0 #8a6414; }
+  #startrecords { margin-top:26px; font-size:12.5px; color:#8fa3ad; letter-spacing:1px; }
+  #startrecords b { color:#f0d48a; }
+
+  /* ---------- map screen ---------- */
+  #screen-map { z-index:15; }
+  #maptitle { position:absolute; top:64px; left:0; right:0; text-align:center; font-size:21px; font-weight:900;
+    letter-spacing:5px; color:#f2e3bb; text-shadow:0 2px 12px rgba(0,0,0,.8); }
+  #mapsub { position:absolute; top:96px; left:0; right:0; text-align:center; font-size:12.5px; color:#9fc4cf; letter-spacing:1px; }
+  #mapsvg { position:absolute; left:50%; top:118px; transform:translateX(-50%); }
+  .node { position:absolute; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%; z-index:5;
+    display:flex; align-items:center; justify-content:center; font-size:25px; cursor:default;
+    background:radial-gradient(circle at 36% 30%, #2b3b48, #121a22 70%); border:2px solid rgba(160,200,220,.35);
+    box-shadow:0 8px 20px rgba(0,0,0,.5); transition:transform .15s; }
+  .node .nlabel { position:absolute; bottom:-17px; left:50%; transform:translateX(-50%); font-size:10px; color:#a9bfc9;
+    white-space:nowrap; letter-spacing:1px; }
+  .node.avail { cursor:pointer; border-color:#f0d48a; animation:nodepulse 1.5s infinite; }
+  .node.avail:hover { transform:scale(1.14); }
+  @keyframes nodepulse { 0%,100%{ box-shadow:0 0 0 0 rgba(240,212,138,.45), 0 8px 20px rgba(0,0,0,.5) } 50%{ box-shadow:0 0 0 10px rgba(240,212,138,0), 0 8px 20px rgba(0,0,0,.5) } }
+  .node.done { opacity:.38; filter:grayscale(.6); }
+  .node.here { border-color:#5eead4; box-shadow:0 0 22px rgba(94,234,212,.65); }
+  .node.elite { border-color:rgba(255,130,90,.6); } .node.boss { border-color:rgba(255,90,90,.75); width:70px; height:70px; margin:-35px 0 0 -35px; font-size:32px; }
+  .node.rest { border-color:rgba(140,230,160,.5); } .node.shop { border-color:rgba(240,212,138,.55); }
+
+  /* ---------- combat (from sample) ---------- */
+  #enemy { position:absolute; right:120px; top:74px; width:272px; z-index:4; text-align:center; }
+  #enemy.bossmode { right:86px; top:58px; width:330px; }
+  #enemyframe { position:relative; width:272px; height:352px; margin:0 auto;
+    border-radius:136px 136px 18px 18px; border:2px solid rgba(167,139,250,.55);
+    box-shadow:0 0 0 4px rgba(10,8,20,.55), 0 0 44px rgba(139,92,246,.35), inset 0 0 60px rgba(0,0,0,.5); }
+  #enemy.bossmode #enemyframe { width:330px; height:428px; border-radius:165px 165px 20px 20px; border-color:rgba(255,100,90,.6);
+    box-shadow:0 0 0 4px rgba(20,6,6,.55), 0 0 54px rgba(255,80,60,.35); }
+  #enemyframe .eimg { position:absolute; inset:0; overflow:hidden; border-radius:inherit; }
+  #enemyframe .eimg img { width:100%; height:100%; object-fit:cover; object-position:top center; }
+  #enemyframe .eimg::after { content:""; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(20,10,40,.12), rgba(5,4,12,.38) 82%); }
+  #enemy.shake { animation:eshake .45s; }
+  @keyframes eshake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-13px)} 45%{transform:translateX(10px)} 70%{transform:translateX(-6px)} }
+  #enemyname { position:absolute; top:-15px; left:50%; transform:translateX(-50%); z-index:6; white-space:nowrap;
+    font-size:14.5px; font-weight:800; letter-spacing:2px; color:#efe9ff; padding:6px 18px; border-radius:16px;
+    background:rgba(16,10,30,.85); border:1px solid rgba(167,139,250,.5); box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  #enemyname small { color:#b7a6e8; font-size:9.5px; letter-spacing:2.5px; margin-left:7px; font-weight:600; }
+  #ehpwrap { position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); z-index:6; width:228px; height:17px;
+    background:rgba(5,6,10,.85); border:1px solid rgba(255,255,255,.25); border-radius:9px; overflow:hidden; box-shadow:0 6px 16px rgba(0,0,0,.5); }
+  #enemy.bossmode #ehpwrap { width:280px; }
+  #ehpfill { height:100%; width:100%; background:linear-gradient(90deg,#e0483e,#ff7a5c); transition:width .35s; }
+  #ehptext { position:absolute; inset:0; font-size:11px; line-height:16px; text-align:center; font-weight:700; text-shadow:0 1px 2px #000; }
+  #eblock { position:absolute; bottom:12px; right:10px; z-index:6; display:none; font-size:11.5px; font-weight:800; color:#9fd8ff;
+    background:rgba(20,50,90,.8); border:1px solid rgba(120,190,255,.5); padding:3px 9px; border-radius:11px; }
+  #estatuses { position:absolute; top:26px; left:8px; z-index:6; display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+  .estatus { font-size:10.5px; font-weight:700; padding:2.5px 8px; border-radius:9px; background:rgba(10,10,18,.78); border:1px solid rgba(255,255,255,.22); }
+  #intent { position:absolute; left:-142px; top:44%; z-index:6; display:inline-flex; align-items:center; gap:6px;
+    padding:6px 13px; border-radius:16px; white-space:nowrap; font-size:12.5px; font-weight:700; backdrop-filter:blur(4px);
+    box-shadow:0 8px 20px rgba(0,0,0,.45); background:rgba(60,16,16,.78); border:1px solid rgba(255,120,100,.45); color:#ffb4a2; }
+  #intent.buff { background:rgba(52,36,8,.8); border-color:rgba(240,212,138,.5); color:#f5ddab; }
+  #intent.debuff { background:rgba(40,14,58,.8); border-color:rgba(190,140,255,.5); color:#ddc2ff; }
+  #intent.defend { background:rgba(16,44,74,.8); border-color:rgba(120,190,255,.5); color:#bfe1ff; }
+  #intent b { color:#fff; font-size:14px; }
+
+  #player { position:absolute; left:26px; bottom:196px; z-index:6; display:flex; align-items:center; gap:12px;
+    background:rgba(7,12,17,.68); border:1px solid rgba(140,220,205,.22); border-radius:16px; padding:10px 16px 10px 10px;
+    backdrop-filter:blur(8px); box-shadow:0 10px 30px rgba(0,0,0,.45); }
+  #player.hit { animation:eshake .4s; }
+  #pava { width:62px; height:62px; border-radius:50%; overflow:hidden; border:2px solid #d8b25c; flex:none; box-shadow:0 0 16px rgba(216,178,92,.35); }
+  #pava img { width:100%; height:100%; object-fit:cover; object-position:top center; }
+  #pinfo { min-width:176px; }
+  #pname { font-size:14.5px; font-weight:800; letter-spacing:1px; }
+  #pname small { color:#8fa3ad; font-weight:600; font-size:11px; margin-left:6px; letter-spacing:2px; }
+  #phpwrap { position:relative; height:15px; margin-top:6px; background:rgba(0,0,0,.6); border-radius:8px; border:1px solid rgba(255,255,255,.18); overflow:hidden; }
+  #phpfill { height:100%; width:90%; background:linear-gradient(90deg,#3ecf6e,#8be04e); transition:width .35s; }
+  #phptext { position:absolute; inset:0; font-size:10.5px; line-height:14px; text-align:center; font-weight:700; text-shadow:0 1px 2px #000; }
+  #pstats { display:flex; gap:7px; margin-top:7px; flex-wrap:wrap; max-width:230px; }
+  .pstat { font-size:11.5px; padding:3px 9px; border-radius:11px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#cfe3ea; }
+  .pstat b { color:#fff; }
+  #blockstat { color:#9fd8ff; border-color:rgba(120,190,255,.4); background:rgba(30,70,120,.35); }
+  .pstat.bad { color:#ffb4a2; border-color:rgba(255,120,100,.45); background:rgba(90,26,20,.35); }
+
+  #energy { position:absolute; left:34px; bottom:38px; z-index:7; width:86px; height:86px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #9ff5e2, #17b898 55%, #0a6e5c);
+    border:3px solid rgba(220,255,248,.75); box-shadow:0 0 30px rgba(46,230,190,.5), inset 0 -8px 18px rgba(0,0,0,.35);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  #energy b { font-size:27px; line-height:1; text-shadow:0 2px 6px rgba(0,0,0,.45); }
+  #energy span { font-size:10px; letter-spacing:2px; opacity:.9; font-weight:700; }
+  #energy.low { filter:grayscale(.55) brightness(.75); box-shadow:0 0 8px rgba(46,230,190,.2); }
+  .pile { position:absolute; bottom:44px; z-index:6; width:64px; text-align:center; font-size:11px; color:#a9bfc9; }
+  .pile .stack { width:46px; height:62px; margin:0 auto 5px; border-radius:7px; position:relative;
+    background:linear-gradient(150deg,#1b2833,#0d141b); border:1.5px solid rgba(150,200,220,.35); }
+  .pile .stack::before { content:""; position:absolute; inset:4px; border:1px solid rgba(150,200,220,.25); border-radius:5px; }
+  #drawpile { left:142px; } #discardpile { right:30px; bottom:150px; }
+  .pile b { color:#fff; font-size:13px; }
+  #endturn { position:absolute; right:30px; bottom:52px; z-index:8; padding:15px 30px; border:none; cursor:pointer;
+    border-radius:14px; font-size:16.5px; font-weight:900; letter-spacing:3px; color:#231a05;
+    background:linear-gradient(180deg,#ffe9a8,#d8a83e); box-shadow:0 5px 0 #8a6414, 0 12px 26px rgba(0,0,0,.5); }
+  #endturn:active { transform:translateY(3px); box-shadow:0 2px 0 #8a6414; }
+  #endturn:disabled { filter:grayscale(.6) brightness(.7); }
+
+  #hand { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:9; display:flex; gap:8px; align-items:flex-end; }
+  .card { position:relative; width:146px; height:210px; border-radius:13px; cursor:pointer; flex:none;
+    background:linear-gradient(165deg,#232f3a,#10161d 60%,#0b0f14); padding:5px;
+    transition:transform .18s ease, box-shadow .18s ease; transform-origin:bottom center; box-shadow:0 10px 24px rgba(0,0,0,.55); }
+  .card:hover { transform:translateY(-30px) scale(1.07) rotate(0deg) !important; z-index:30; box-shadow:0 24px 44px rgba(0,0,0,.65); }
+  .card.unplayable { filter:grayscale(.65) brightness(.62); cursor:not-allowed; }
+  .card.playing { transition:transform .38s ease, opacity .38s ease; transform:translateY(-190px) scale(1.12) !important; opacity:0; }
+  .card .frame { position:relative; height:100%; border-radius:9px; overflow:hidden; display:flex; flex-direction:column; background:linear-gradient(180deg,#1a232d,#0d1218); }
+  .card.common { border:1.5px solid #77828c; }
+  .card.rare { border:1.5px solid #3f8fd2; box-shadow:0 10px 24px rgba(0,0,0,.55), 0 0 16px rgba(63,143,210,.35); }
+  .card.legendary { background:linear-gradient(165deg,#3a2c10,#191104); }
+  .card.legendary .frame { border:1.5px solid #e9c766; }
+  .card.legendary::before { content:""; position:absolute; inset:-2px; border-radius:14px; z-index:-1;
+    background:conic-gradient(from var(--a,0deg), transparent 0 40%, rgba(255,215,110,.85) 50%, transparent 60% 100%);
+    animation:spin 2.6s linear infinite; }
+  @property --a { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+  @keyframes spin { to { --a:360deg; } }
+  .card .uptag { position:absolute; right:-3px; top:-3px; z-index:5; font-size:10px; font-weight:900; color:#062b16;
+    background:linear-gradient(180deg,#a7f3c9,#3ecf6e); border-radius:9px; padding:2.5px 7px; border:1.5px solid #d9ffe9; }
+  .cost { position:absolute; left:-4px; top:-4px; z-index:5; width:34px; height:34px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #a5f3e4, #14b8a6 60%, #0b6e5f); border:2px solid #e6fff9;
+    display:flex; align-items:center; justify-content:center; font-size:16.5px; font-weight:900; color:#04231d; box-shadow:0 3px 10px rgba(0,0,0,.5); }
+  .art { position:relative; height:102px; flex:none; overflow:hidden; background:#0a0e13; }
+  .art img, .art video { width:100%; height:100%; object-fit:cover; display:block; }
+  .art .glyph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:50px; text-shadow:0 4px 22px rgba(0,0,0,.7); }
+  .art .dyn { position:absolute; right:5px; top:5px; z-index:3; font-size:9.5px; font-weight:800; letter-spacing:1px;
+    color:#ffe9a8; background:rgba(30,20,2,.72); border:1px solid rgba(233,199,102,.7); padding:2px 6px; border-radius:8px; }
+  .cname { flex:none; text-align:center; font-size:13.5px; font-weight:800; letter-spacing:1px; padding:6px 3px 2px; color:#f4f7f9; }
+  .ctype { flex:none; text-align:center; font-size:9px; color:#8fa3ad; letter-spacing:2.5px; padding-bottom:4px; }
+  .ctext { flex:1; margin:0 7px 7px; padding:6px 7px; border-radius:7px; background:rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.07); font-size:11px; line-height:1.5; color:#d7e3ea; text-align:center; }
+  .ctext b { color:#5eead4; } .ctext .dmg { color:#ffb08a; } .ctext .blk { color:#9fd8ff; } .ctext .heal { color:#8be04e; }
+  .rgem { position:absolute; left:50%; bottom:-1px; transform:translateX(-50%); width:13px; height:13px; z-index:4;
+    clip-path:polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  .common .rgem { background:#aeb9c2; } .rare .rgem { background:#53a8e8; } .legendary .rgem { background:#f5cf5e; box-shadow:0 0 10px rgba(245,207,94,.8); }
+  .card.big { width:172px; height:248px; cursor:pointer; }
+  .card.big .art { height:124px; } .card.big .cname { font-size:15px; } .card.big .ctext { font-size:12px; }
+  .card.big:hover { transform:translateY(-14px) scale(1.04) !important; }
+
+  .floatnum { position:absolute; z-index:40; font-size:30px; font-weight:900; pointer-events:none;
+    text-shadow:0 2px 0 rgba(0,0,0,.55), 0 0 18px rgba(255,120,60,.5); animation:floatup 1s ease-out forwards; }
+  @keyframes floatup { 0%{ transform:translateY(0) scale(.7); opacity:0 } 15%{ opacity:1; transform:translateY(-8px) scale(1.15) } 100%{ transform:translateY(-64px) scale(1); opacity:0 } }
+  #slash { position:absolute; z-index:35; width:320px; height:320px; right:96px; top:92px; pointer-events:none; opacity:0;
+    background:radial-gradient(circle, rgba(94,234,212,.5) 0%, rgba(94,234,212,0) 62%); border-radius:50%; }
+  #slash.on { animation:slashfx .45s ease-out; }
+  @keyframes slashfx { 0%{ opacity:0; transform:scale(.5) rotate(-14deg) } 30%{ opacity:1 } 100%{ opacity:0; transform:scale(1.25) rotate(8deg) } }
+
+  /* ---------- panels: reward / rest / shop / event / deck / over ---------- */
+  .panelwrap { position:absolute; inset:0; z-index:25; display:none; align-items:center; justify-content:center;
+    background:rgba(3,6,9,.62); backdrop-filter:blur(3px); }
+  .panelwrap.on { display:flex; }
+  .panel { width:860px; max-height:640px; overflow-y:auto; background:linear-gradient(170deg, rgba(16,24,32,.97), rgba(9,13,18,.97));
+    border:1px solid rgba(140,200,220,.25); border-radius:20px; padding:28px 34px; box-shadow:0 30px 80px rgba(0,0,0,.7); }
+  .panel h2 { font-size:23px; letter-spacing:4px; color:#f2e3bb; text-align:center; }
+  .panel .psub { text-align:center; color:#9fc4cf; font-size:13px; margin-top:7px; }
+  .cardrow { display:flex; gap:20px; justify-content:center; margin-top:24px; }
+  .choicebtns { display:flex; gap:14px; justify-content:center; margin-top:24px; }
+  .ghostbtn { padding:11px 26px; border-radius:12px; cursor:pointer; font-size:14px; font-weight:700; letter-spacing:2px;
+    color:#cfe3ea; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2); }
+  .ghostbtn:hover { border-color:rgba(240,212,138,.6); color:#f0d48a; }
+  .goldbtn { padding:11px 26px; border-radius:12px; cursor:pointer; font-size:14px; font-weight:900; letter-spacing:2px;
+    color:#231a05; background:linear-gradient(180deg,#ffe9a8,#d8a83e); border:none; box-shadow:0 3px 0 #8a6414; }
+  .relicget { display:flex; align-items:center; gap:14px; justify-content:center; margin-top:18px; padding:12px 20px;
+    background:rgba(58,44,16,.35); border:1px solid rgba(233,199,102,.45); border-radius:14px; }
+  .relicget .ricon { font-size:32px; } .relicget .rname { font-size:15px; font-weight:800; color:#f5ddab; }
+  .relicget .rdesc { font-size:12px; color:#cbbd93; margin-top:2px; }
+  .shopitem { text-align:center; }
+  .shopitem .price { margin-top:10px; font-size:14px; font-weight:800; color:#f0d48a; }
+  .shopitem .buybtn { margin-top:7px; padding:7px 22px; border-radius:10px; border:none; cursor:pointer; font-weight:800;
+    background:linear-gradient(180deg,#ffe9a8,#d8a83e); color:#231a05; }
+  .shopitem .buybtn:disabled { filter:grayscale(.7) brightness(.6); cursor:not-allowed; }
+  .shopitem.sold { opacity:.35; pointer-events:none; }
+  .eventbox { text-align:center; padding:6px 30px; }
+  .eventbox .eicon { font-size:54px; } .eventbox .etitle { font-size:19px; font-weight:800; letter-spacing:2px; margin-top:8px; color:#efe9ff; }
+  .eventbox .edesc { margin:12px auto 0; width:560px; font-size:13.5px; line-height:1.85; color:#b9ccd6; }
+  .deckgrid { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:20px; }
+  .deckgrid .card { width:118px; height:168px; cursor:default; }
+  .deckgrid .card .art { height:78px; } .deckgrid .card .cname { font-size:12px; } .deckgrid .card .ctext { font-size:10px; padding:5px; }
+  .deckgrid .card:hover { transform:none !important; }
+  .deckgrid .card.pickable { cursor:pointer; } .deckgrid .card.pickable:hover { transform:translateY(-8px) !important; }
+  #relicbar { position:absolute; left:16px; top:60px; z-index:18; display:flex; flex-direction:column; gap:7px; }
+  .relicslot { width:40px; height:40px; border-radius:11px; background:rgba(10,14,20,.72); border:1px solid rgba(233,199,102,.4);
+    display:flex; align-items:center; justify-content:center; font-size:20px; position:relative; }
+  .relicslot .rtip { display:none; position:absolute; left:48px; top:0; width:190px; z-index:40; padding:9px 11px; border-radius:10px;
+    background:rgba(8,12,17,.95); border:1px solid rgba(233,199,102,.5); font-size:11.5px; line-height:1.55; color:#e8dfc2; }
+  .relicslot:hover .rtip { display:block; }
+  #toast { position:absolute; left:50%; top:120px; transform:translateX(-50%); z-index:68; padding:10px 24px; border-radius:14px;
+    background:rgba(8,13,18,.9); border:1px solid rgba(94,234,212,.45); color:#c9f5ec; font-size:14px; font-weight:700;
+    letter-spacing:1px; opacity:0; pointer-events:none; transition:opacity .3s; box-shadow:0 12px 30px rgba(0,0,0,.55); }
+  #banner { position:absolute; inset:0; z-index:75; display:none; align-items:center; justify-content:center;
+    background:rgba(3,6,9,.78); backdrop-filter:blur(4px); }
+  #banner .box { text-align:center; }
+  #banner h1 { font-size:46px; letter-spacing:10px; color:#f2e3bb; text-shadow:0 0 34px rgba(216,178,92,.6); }
+  #banner p { margin-top:12px; color:#b9ccd6; font-size:14.5px; letter-spacing:1px; line-height:1.9; }
+  #mapnodes { position:absolute; left:50%; top:118px; transform:translateX(-50%); width:1060px; height:520px; z-index:6; }
+  #sfxbtn { cursor:pointer; } #sfxbtn:hover { border-color:rgba(94,234,212,.6); }
+  /* ===== camera & crisp rendering ===== */
+  #stage-cam { position:absolute; inset:0; transform-origin:center; will-change:transform; }
+  #stage img, #stage video { image-rendering:auto; }
+  /* ===== animation & VFX pack ===== */
+  #fxlayer { position:absolute; inset:0; z-index:36; pointer-events:none; overflow:hidden; }
+  #fxcanvas { position:absolute; inset:0; width:1280px; height:720px; z-index:62; pointer-events:none; }
+  .burst { position:absolute; width:240px; height:240px; margin:-120px 0 0 -120px; border-radius:50%; opacity:0; pointer-events:none; }
+  .burst.go { animation: burstA .44s cubic-bezier(.15,.85,.3,1) both; }
+  @keyframes burstA { 0% { opacity:1; transform:scale(.22) rotate(0deg); } 100% { opacity:0; transform:scale(1.42) rotate(24deg); } }
+  .burst.slash { background: radial-gradient(circle, rgba(255,255,255,.98) 0%, rgba(110,240,220,.62) 32%, transparent 66%); clip-path: polygon(0 40%, 100% 24%, 100% 52%, 0 68%); border-radius:0; }
+  .burst.fire { background: radial-gradient(circle, rgba(255,236,170,.98) 0%, rgba(255,110,30,.65) 36%, transparent 68%); }
+  .burst.frost { background: radial-gradient(circle, rgba(230,252,255,.98) 0%, rgba(80,200,245,.6) 36%, transparent 68%); }
+  .burst.bolt { background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(120,230,255,.72) 28%, transparent 64%); }
+  .burst.heal { background: radial-gradient(circle, rgba(190,255,205,.92) 0%, rgba(70,220,130,.52) 38%, transparent 68%); }
+  .burst.block { background: radial-gradient(circle, transparent 36%, rgba(140,215,255,.88) 60%, transparent 80%); }
+  #enemy .eimg { transition: filter .14s ease-out, opacity .55s, transform .2s cubic-bezier(.2,.9,.3,1); }
+  #enemy.hitflash .eimg { filter: brightness(2.85) contrast(1.25) saturate(.35) !important; transform: translate(18px,-7px) rotate(2.6deg) scale(.95) !important; transition:none !important; }
+  #enemy.hitflash-heavy .eimg { filter: brightness(3.2) contrast(1.35) saturate(.2) drop-shadow(0 0 28px rgba(255,210,130,.95)) !important; transform: translate(26px,-10px) rotate(4deg) scale(.91) !important; transition:none !important; }
+  #enemy.dying .eimg { filter: grayscale(1) brightness(.35); opacity:.22; transform: translateY(26px) scale(.94); transition: filter .55s, opacity .55s, transform .55s; }
+  #player.hitflash { filter: brightness(1.8) saturate(1.4); box-shadow:0 0 36px rgba(255,70,50,.85); }
+  #hand.drawing .card { animation: drawin .34s cubic-bezier(.2,.9,.3,1.25) both; }
+  #hand.drawing .card:nth-child(2) { animation-delay:.05s; } #hand.drawing .card:nth-child(3) { animation-delay:.1s; }
+  #hand.drawing .card:nth-child(4) { animation-delay:.15s; } #hand.drawing .card:nth-child(5) { animation-delay:.2s; }
+  #hand.drawing .card:nth-child(6) { animation-delay:.25s; } #hand.drawing .card:nth-child(7) { animation-delay:.3s; }
+  @keyframes drawin { from { transform: translate(-280px,130px) rotate(-16deg) scale(.55); opacity:0; } }
+  #combochip { position:absolute; left:492px; bottom:206px; z-index:14; padding:5px 14px; border-radius:999px; background:rgba(64,32,8,.78); border:1px solid rgba(255,170,60,.7); color:#ffc48a; font-size:13px; font-weight:800; letter-spacing:1px; box-shadow:0 0 18px rgba(255,140,40,.35); }
+  /* ===== tiered damage numbers ===== */
+  .floatnum { position:absolute; z-index:66; font-size:32px; font-weight:900; pointer-events:none; white-space:nowrap;
+    text-shadow:0 3px 0 rgba(0,0,0,.85), 0 0 18px rgba(255,120,60,.65); letter-spacing:1px; }
+  .floatnum.heavy { font-size:44px; text-shadow:0 4px 0 rgba(40,6,0,.92), 0 0 28px rgba(255,180,60,.95), 0 0 8px rgba(255,255,255,.65); }
+  .floatnum.crit { font-size:50px; background:linear-gradient(180deg,#fff9d6 15%,#ffd257 52%,#ff6b35 95%); -webkit-background-clip:text; background-clip:text; color:transparent !important;
+    filter:drop-shadow(0 4px 0 rgba(35,4,0,.95)) drop-shadow(0 0 22px rgba(255,140,40,.95)); }
+  .floatnum .ftag { display:block; font-size:11px; letter-spacing:3px; font-weight:900; text-align:center; color:#ffe6a3; text-shadow:0 2px 6px rgba(0,0,0,.95); margin-bottom:-4px; }
+  .floatnum.status { font-size:21px; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.9); }
+  /* ===== boss cinematic entrance & ultimate ===== */
+  .cinebar { position:absolute; left:0; right:0; height:58px; background:#030508; z-index:63; pointer-events:none; transition:transform .38s cubic-bezier(.2,.8,.2,1); }
+  #cine-top { top:0; transform:translateY(-100%); border-bottom:1px solid rgba(255,110,80,.28); }
+  #cine-bot { bottom:0; transform:translateY(100%); border-top:1px solid rgba(255,110,80,.28); }
+  .cinebar.on { transform:translateY(0) !important; }
+  #boss-veil { position:absolute; inset:0; z-index:48; pointer-events:none; opacity:0; transition:opacity .35s;
+    background:radial-gradient(ellipse at 72% 40%, rgba(160,24,18,.26), rgba(4,5,10,.82) 72%); }
+  #boss-veil.on { opacity:1; }
+  #introbanner { position:absolute; left:0; right:0; top:225px; z-index:64; text-align:center; opacity:0; pointer-events:none; }
+  #introbanner .ib-kicker { font-size:13px; letter-spacing:9px; color:#ffb499; font-weight:800; text-transform:uppercase; text-shadow:0 2px 16px rgba(255,70,40,.85); }
+  #introbanner .ib-name { margin-top:8px; font-size:48px; font-weight:900; letter-spacing:8px; color:#fff7e2;
+    text-shadow:0 4px 0 rgba(55,10,8,.85), 0 0 42px rgba(255,80,45,.85); }
+  #introbanner .ib-line { width:0; height:2px; margin:12px auto 10px; background:linear-gradient(90deg, transparent, #ffd27d, #ff6b4a, #ffd27d, transparent); transition:width .48s cubic-bezier(.2,.9,.3,1); }
+  #introbanner.on .ib-line { width:460px; }
+  #introbanner .ib-sub { font-size:13px; letter-spacing:5px; color:#d8c3a5; font-weight:700; text-shadow:0 2px 10px #000; }
+  #introbanner .ib-warn { display:inline-block; margin-top:14px; padding:5px 18px; border-radius:999px; font-size:12.5px; letter-spacing:2px; font-weight:800;
+    color:#ffd3c4; background:rgba(80,14,12,.78); border:1px solid rgba(255,110,80,.65); box-shadow:0 6px 24px rgba(0,0,0,.6); }
+  #introbanner.elite-style .ib-kicker { color:#f5d08a; text-shadow:0 2px 14px rgba(240,180,70,.8); }
+  #introbanner.elite-style .ib-name { font-size:38px; text-shadow:0 4px 0 rgba(35,16,52,.85), 0 0 34px rgba(175,115,255,.75); }
+  #introbanner.elite-style .ib-warn { color:#e9d6ff; background:rgba(46,18,74,.82); border-color:rgba(190,130,255,.65); }
+  #ultbanner { position:absolute; left:0; right:0; top:215px; z-index:64; text-align:center; font-size:50px; font-weight:900; letter-spacing:14px; color:#ffe6cf;
+    text-shadow:0 0 44px rgba(255,55,20,.98), 0 5px 0 rgba(70,0,0,.85); opacity:0; pointer-events:none; }
+  #ultbanner.on { animation: ultin 1.55s cubic-bezier(.18,.88,.28,1) both; }
+  @keyframes ultin { 0% { opacity:0; transform:scale(.55); letter-spacing:24px; } 18% { opacity:1; transform:scale(1.08); letter-spacing:14px; } 30% { transform:scale(1); } 78% { opacity:1; } 100% { opacity:0; transform:scale(1.05); } }
+  #ultflash { position:absolute; inset:0; z-index:61; pointer-events:none; opacity:0; background: radial-gradient(ellipse at 72% 35%, rgba(255,95,40,.55), rgba(255,30,10,.2) 55%, transparent 78%); }
+  #ultflash.on { animation: ultf .9s ease-out both; }
+  @keyframes ultf { 0% { opacity:0; } 22% { opacity:1; } 100% { opacity:0; } }
+  #intent.charging { animation: chargepulse .65s ease-in-out infinite alternate; border-color: rgba(255,90,60,.95) !important; color:#ffb199 !important; box-shadow:0 0 24px rgba(255,60,30,.55); }
+  @keyframes chargepulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+  #enemy.ulting .eimg { transform: scale(1.48) translate(-34px, 10px); filter: brightness(1.55) contrast(1.15) drop-shadow(0 0 44px rgba(255,60,30,.95)); transition:transform .55s cubic-bezier(.2,.85,.25,1), filter .4s; }
+  #hurtvignette { position:absolute; inset:0; z-index:60; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center, transparent 48%, rgba(255,36,24,.58) 100%); }
+  #impactflash { position:absolute; inset:0; z-index:65; pointer-events:none; opacity:0; background: radial-gradient(ellipse at center, rgba(255,248,225,.95) 0%, rgba(255,196,90,.48) 44%, transparent 76%); }
+  /* ===== borderless 3D legendary break-out stage ===== */
+  #legmoment { position:absolute; inset:0; z-index:58; display:none; align-items:center; justify-content:center; perspective:1100px;
+    background:radial-gradient(ellipse at center, rgba(6,12,18,.35), rgba(2,5,9,.88)); cursor:pointer; overflow:hidden; }
+  #legmoment.on { display:flex; }
+  #legcard { position:relative; z-index:4; transform-origin:center; will-change:transform,opacity; }
+  #legcrack { position:absolute; inset:-18px; z-index:6; pointer-events:none; opacity:0; mix-blend-mode:screen;
+    background:conic-gradient(from 12deg at 50% 50%, transparent 0 18deg, rgba(255,245,205,.95) 19deg, transparent 22deg 94deg, rgba(130,245,230,.9) 96deg, transparent 99deg 168deg, rgba(255,230,150,.95) 170deg, transparent 174deg 256deg, rgba(255,255,255,.95) 258deg, transparent 262deg 360deg); }
+  #legchar { position:absolute; left:50%; top:50%; height:640px; max-width:760px; object-fit:contain; opacity:0; pointer-events:none; filter: drop-shadow(0 26px 60px rgba(0,0,0,.75)); transform: translate(-50%,-50%); z-index:5; }
+  #legstage { position:absolute; inset:0; z-index:5; display:none; overflow:hidden; border:none; border-radius:0; box-shadow:none; background:#03060a; }
+  #legstage.on { display:block; }
+  #legvideo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 22%; border:none; border-radius:0; outline:none; background:#03060a; transform-origin:center 38%; will-change:transform,filter,opacity; }
+  #legblend { position:absolute; inset:0; z-index:6; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 44%, transparent 56%, rgba(4,8,13,.42) 86%, rgba(3,6,10,.82) 100%), linear-gradient(180deg, rgba(3,6,10,.45) 0%, transparent 16%, transparent 74%, rgba(3,6,10,.78) 100%); }
+  #legtitle { position:absolute; left:54px; bottom:52px; z-index:8; pointer-events:none; opacity:0; text-align:left; }
+  #legtitle .lt-tag { font-size:12px; letter-spacing:6px; font-weight:800; color:var(--leg-accent, #ffe299); text-shadow:0 2px 14px rgba(0,0,0,.9); }
+  #legtitle .lt-name { margin-top:4px; font-size:44px; font-weight:900; letter-spacing:5px; color:#ffffff;
+    text-shadow:0 4px 0 rgba(0,0,0,.75), 0 0 34px var(--leg-glow, rgba(255,200,90,.85)); }
+  #legtitle .lt-bar { width:260px; height:3px; margin-top:8px; background:linear-gradient(90deg, var(--leg-accent, #ffe299), transparent); box-shadow:0 0 14px var(--leg-glow, rgba(255,200,90,.85)); }
+  #legtitle .lt-bond { margin-top:7px; font-size:12.5px; letter-spacing:2px; color:#d7e7ee; text-shadow:0 2px 8px #000; }
+  #legskip { position:absolute; right:26px; bottom:22px; z-index:9; font-size:11px; letter-spacing:2px; color:rgba(220,235,245,.55); pointer-events:none; }
+  .shard { position:absolute; width:14px; height:22px; background: linear-gradient(160deg, #fff9e6, var(--leg-accent, #e8b64c) 60%, #7d5914); clip-path: polygon(50% 0, 100% 100%, 0 88%); pointer-events:none; z-index:63; box-shadow:0 0 10px var(--leg-glow, rgba(255,200,90,.7)); }
+  .card.selected { outline: 3px solid #ffd76a; outline-offset: 2px; transform: translateY(-12px) !important; }
+  .flycard { position:absolute; z-index:55; pointer-events:none; margin:0 !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+<div id="stage-cam">
+  <div id="acttint"></div>
+
+  <!-- START -->
+  <div class="screen on" id="screen-start">
+    <div id="startbox">
+      <div id="gametitle">深渊牌局</div>
+      <div id="gamesub">ABYSS · CARD ROGUELIKE</div>
+      <div id="startdesc">构筑你的牌组，穿越深渊三层。<br>每一回合都是一次取舍：进攻，还是活下去。<br>传说卡的卡面，是活的。</div>
+      <button class="bigbtn" id="startbtn">开始冒险</button>
+      <button class="bigbtn" id="endlessbtn" style="margin-left:12px;background:linear-gradient(180deg,#7a4fd0,#4c2a8f);box-shadow:0 10px 30px rgba(124,79,208,.4)">♾️ 无尽刷宝</button>
+      <div style="margin-top:10px;font-size:12px;color:#8fa3ad">无尽刷宝：无限层数连续战斗，每 3 层必掉装备、每 5 层 Boss —— 打到倒下为止，专为刷装备与遗物</div>
+      <div id="startrecords"></div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="screen" id="screen-map">
+    <div id="maptitle">深渊 · 第 <span id="mapact">1</span> 层</div>
+    <div id="mapsub">选择一条路线，向深渊深处推进 —— ⚔ 战斗 · 🔥 精英 · ❓ 事件 · 🛒 商店 · 🏕 休息 · 👑 Boss</div>
+    <svg id="mapsvg" width="1060" height="520"></svg>
+    <div id="mapnodes"></div>
+  </div>
+
+  <!-- COMBAT -->
+  <div class="screen" id="screen-combat">
+    <div id="enemy">
+      <div id="enemyframe">
+        <div class="eimg"><img id="enemyimg" src="" alt=""></div>
+        <div id="enemyname">敌人<small></small></div>
+        <div id="estatuses"></div>
+        <div id="eblock">🛡 <span id="eblocknum">0</span></div>
+        <div id="ehpwrap"><div id="ehpfill"></div><div id="ehptext">0 / 0</div></div>
+        <span id="intent">⚔ 意图</span>
+      </div>
+    </div>
+    <div id="slash"></div>
+    <div id="player">
+      <div id="pava"><img src="assets/hero.webp" alt="苍流"></div>
+      <div id="pinfo">
+        <div id="pname">苍流<small>银发剑姬</small></div>
+        <div id="phpwrap"><div id="phpfill"></div><div id="phptext">80 / 80</div></div>
+        <div id="pstats">
+          <span class="pstat" id="blockstat">🛡 格挡 <b id="blocknum">0</b></span>
+          <span class="pstat" id="strstat" style="display:none">⚔ 力量 <b id="strnum">0</b></span>
+          <span class="pstat" id="thornstat" style="display:none">🌵 荆棘 <b id="thornnum">0</b></span>
+          <span class="pstat" id="jifengstat" style="display:none">🍃 疾风 <b id="jifengnum">0</b></span>
+          <span class="pstat" id="wolfstat" style="display:none">🐺 影狼 <b id="wolfnum">0</b></span>
+          <span class="pstat bad" id="vulnstat" style="display:none">💔 易伤 <b id="vulnnum">0</b></span>
+          <span class="pstat bad" id="weakstat" style="display:none">🥀 虚弱 <b id="weaknum">0</b></span>
+        </div>
+      </div>
+    </div>
+    <div id="energy"><b id="energynum">3</b><span>能量</span></div>
+    <div id="combochip" style="display:none">连击 ×<b id="combonum">0</b></div>
+    <div id="ultbanner"></div>
+    <div id="introbanner"></div>
+    <div id="ultflash"></div>
+    <div class="pile" id="drawpile"><div class="stack"></div>抽牌堆 <b id="drawnum">0</b></div>
+    <div class="pile" id="discardpile"><div class="stack"></div>弃牌堆 <b id="discardnum">0</b></div>
+    <button id="endturn">结束回合</button>
+    <div id="hand"></div>
+  </div>
+
+  <!-- shared top bar -->
+  <div id="topbar">
+    <div id="logo">深渊牌局<small>ABYSS · CARD ROGUELIKE</small></div>
+    <div id="floorinfo">深渊 <b id="tb-act">第 1 层</b> · <b id="tb-where">大厅</b></div>
+    <div id="topright">
+      <div class="tchip">❤️ <b id="tb-hp">80/80</b></div>
+      <div class="tchip">🪙 <b id="tb-gold">0</b></div>
+      <div class="tchip" id="deckbtn">牌组 <b id="tb-deck">11</b></div>
+      <div class="tchip" id="equipbtn" style="cursor:pointer">⚔️ 装备</div>
+      <div class="tchip" id="sfxbtn" title="开关音效">🔊</div>
+    </div>
+  </div>
+  <div id="relicbar"></div>
+  <div id="toast"></div>
+
+  <!-- REWARD -->
+  <div class="panelwrap" id="panel-reward">
+    <div class="panel">
+      <h2 id="rewardtitle">战 利 品</h2>
+      <div class="psub" id="rewardsub">选择一张牌加入你的牌组</div>
+      <div id="rewardrelic"></div>
+      <div class="cardrow" id="rewardcards"></div>
+      <div class="choicebtns">
+        <button class="ghostbtn" id="rewardskip">跳过选牌（+15 金币）</button>
+        <button class="goldbtn" id="rewardgo" style="display:none">继续前进 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REST -->
+  <div class="panelwrap" id="panel-rest">
+    <div class="panel" style="width:680px">
+      <h2>🏕 休 息 点</h2>
+      <div class="psub">篝火旁的喘息时间，只能做一件事</div>
+      <div class="choicebtns" style="margin-top:30px">
+        <button class="goldbtn" id="restheal">🔥 休整：回复 <span id="healamount">24</span> 点生命</button>
+        <button class="ghostbtn" id="restupgrade">🔨 锻造：升级一张牌</button>
+        <button class="ghostbtn" id="restfuse">⚗️ 熔炉：合成两张牌</button>
+      </div>
+      <div id="restdeck" style="display:none"><div class="psub" style="margin-top:18px">选择要升级的牌（点一张）</div><div class="deckgrid restgrid"></div></div>
+      <div id="fusedeck" style="display:none"><div class="psub" style="margin-top:18px">选择 <b>两张</b>牌投入熔炉 —— 特定组合有专属合成牌，其余按稀有度跃升</div><div class="deckgrid fusegrid"></div>
+        <div class="choicebtns" style="margin-top:16px"><span id="fusehint" style="align-self:center;color:#9fb4c0;font-size:13px">已选 0 / 2</span><button class="goldbtn" id="fuseconfirm" disabled style="opacity:.45">投入熔炉</button></div></div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div class="panelwrap" id="panel-shop">
+    <div class="panel">
+      <h2>🛒 深 渊 商 店</h2>
+      <div class="psub">「钱财乃身外之物，命才是。」—— 店主 · 你的金币：<b id="shopgold" style="color:#f0d48a">0</b></div>
+      <div class="cardrow" id="shopcards"></div>
+      <div id="shoprelic"></div>
+      <div id="shopequip"></div>
+      <div class="choicebtns">
+        <button class="ghostbtn" id="shopremove">🗑 删牌服务（75 金币）</button>
+        <button class="goldbtn" id="shopleave">离开商店 →</button>
+      </div>
+      <div id="shopdeck" style="display:none"><div class="psub" style="margin-top:18px">选择要移除的牌（点一张）</div><div class="deckgrid shopgrid"></div></div>
+    </div>
+  </div>
+
+  <!-- EVENT -->
+  <div class="panelwrap" id="panel-event">
+    <div class="panel" style="width:720px">
+      <div class="eventbox">
+        <div class="eicon" id="eventicon">❓</div>
+        <div class="etitle" id="eventtitle">未知事件</div>
+        <div class="edesc" id="eventdesc"></div>
+        <div class="choicebtns" id="eventchoices"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DECK VIEW -->
+  <div class="panelwrap" id="panel-deck">
+    <div class="panel">
+      <h2>我 的 牌 组</h2>
+      <div class="psub" id="deckcount"></div>
+      <div class="deckgrid viewgrid"></div>
+      <div class="choicebtns"><button class="goldbtn" id="deckclose">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- EQUIP -->
+  <div class="panelwrap" id="panel-equip">
+    <div class="panel">
+      <h2>⚔️ 装 备</h2>
+      <div class="psub">点背包里的装备穿上，点已装备的卸下。装备在战斗中全程生效。</div>
+      <div id="equipslots" style="display:flex;gap:14px;justify-content:center;margin-top:20px;flex-wrap:wrap"></div>
+      <div class="psub" style="margin-top:22px">背 包</div>
+      <div id="equipbag" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px;min-height:60px"></div>
+      <div class="choicebtns"><button class="goldbtn" id="equipclose">关闭</button></div>
+    </div>
+  </div>
+
+  <div id="fxlayer"></div>
+  <div id="boss-veil"></div>
+  <div id="hurtvignette"></div>
+  <div id="legmoment">
+    <div class="bigcardwrap" id="legcard"><div id="legcrack"></div></div>
+    <img id="legchar" alt="">
+    <div id="legstage"><video id="legvideo" muted playsinline preload="auto"></video><div id="legblend"></div></div>
+    <div id="legtitle"><div class="lt-tag">✦ 传 说 降 临 · LEGENDARY ✦</div><div class="lt-name" id="legname"></div><div class="lt-bar"></div><div class="lt-bond" id="legbond"></div></div>
+    <div id="legskip">点击任意处跳过</div>
+  </div>
+  <canvas id="fxcanvas" width="1280" height="720"></canvas>
+  <div class="cinebar" id="cine-top"></div>
+  <div class="cinebar" id="cine-bot"></div>
+  <div id="impactflash"></div>
+
+  <!-- GAME OVER / VICTORY -->
+  <div id="banner"><div class="box">
+    <h1 id="bannertitle">胜 利</h1>
+    <p id="bannertext"></p>
+    <button class="bigbtn" id="bannerbtn" style="margin-top:22px">再来一局</button>
+  </div></div>
+</div>
+</div>
+<script>
+/* ================= DATA ================= */
+const $ = id => document.getElementById(id);
+const stage = $("stage");
+const stageCam = $("stage-cam");
+
+/* ================= PROCEDURAL WEB AUDIO SFX ENGINE ================= */
+const SFX = (() => {
+  let ctx = null, muted = false, noiseBuf = null;
+  const customAudio = {};
+  function ensure(){
+    if(muted) return null;
+    if(!ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return null; ctx = new AC(); }
+    if(ctx.state === "suspended") ctx.resume().catch(() => {});
+    if(!noiseBuf && ctx){
+      const len = Math.floor(ctx.sampleRate * 1.2);
+      noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const ch = noiseBuf.getChannelData(0);
+      for(let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+    }
+    return ctx;
+  }
+  function tone(freq, freqEnd, dur, type = "sine", vol = 0.16, delay = 0){
+    const c = ensure(); if(!c) return;
+    const t = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(Math.max(24, freq), t);
+    if(freqEnd && freqEnd !== freq) o.frequency.exponentialRampToValueAtTime(Math.max(24, freqEnd), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + Math.min(0.014, dur * 0.2));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, filterFreq, q = 1.2, vol = 0.14, delay = 0, filterType = "bandpass"){
+    const c = ensure(); if(!c || !noiseBuf) return;
+    const t = c.currentTime + delay;
+    const src = c.createBufferSource(); src.buffer = noiseBuf;
+    const flt = c.createBiquadFilter(); flt.type = filterType; flt.frequency.setValueAtTime(filterFreq, t); flt.Q.value = q;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(flt); flt.connect(g); g.connect(c.destination);
+    src.start(t); src.stop(t + dur + 0.02);
+  }
+  function playCustom(name){
+    if(muted || !customAudio[name]) return false;
+    try{ const a = customAudio[name].cloneNode(); a.volume = 0.75; a.play().catch(() => {}); return true; }catch(e){ return false; }
+  }
+  const api = {
+    override(name, url){ customAudio[name] = new Audio(url); },
+    toggle(){ muted = !muted; const b = $("sfxbtn"); if(b) b.textContent = muted ? "🔇" : "🔊"; return !muted; },
+    cardHover(){ if(playCustom("cardHover")) return; tone(620, 880, 0.045, "triangle", 0.035); },
+    cardPlay(){ if(playCustom("cardPlay")) return; noise(0.14, 1400, 0.9, 0.11); tone(260, 520, 0.11, "triangle", 0.07); },
+    hitLight(pitch = 1){ if(playCustom("hitLight")) return; tone(175 * pitch, 52, 0.13, "triangle", 0.22); noise(0.11, 2100 * pitch, 1.4, 0.16); tone(760 * pitch, 260, 0.07, "sawtooth", 0.06); },
+    hitHeavy(pitch = 1){ if(playCustom("hitHeavy")) return; tone(135 * pitch, 36, 0.26, "sine", 0.3); tone(220 * pitch, 65, 0.18, "sawtooth", 0.12); noise(0.18, 1350, 0.9, 0.22); noise(0.12, 3400, 1.8, 0.12, 0.02); },
+    hitCrit(){ if(playCustom("hitCrit")) return; tone(110, 32, 0.34, "sine", 0.34); tone(520, 1080, 0.14, "triangle", 0.14); tone(880, 1320, 0.22, "sine", 0.1, 0.04); noise(0.24, 1800, 0.8, 0.26); },
+    hitElement(el){
+      if(el === "火"){ noise(0.26, 620, 0.7, 0.2, 0, "lowpass"); tone(140, 48, 0.22, "sawtooth", 0.12); }
+      else if(el === "冰"){ tone(1280, 1860, 0.12, "sine", 0.1); tone(1680, 920, 0.18, "triangle", 0.09, 0.04); noise(0.14, 4200, 2.2, 0.12); }
+      else if(el === "雷"){ noise(0.2, 3200, 1.1, 0.2); tone(980, 160, 0.16, "sawtooth", 0.11); tone(1420, 320, 0.1, "square", 0.07, 0.05); }
+      else if(el === "影" || el === "血"){ tone(180, 58, 0.25, "sawtooth", 0.13); noise(0.18, 820, 1.4, 0.14); }
+    },
+    block(){ if(playCustom("block")) return; tone(420, 620, 0.12, "triangle", 0.12); tone(840, 1120, 0.18, "sine", 0.09, 0.03); },
+    blockAbsorb(){ if(playCustom("blockAbsorb")) return; tone(540, 310, 0.16, "triangle", 0.18); tone(1080, 740, 0.14, "sine", 0.1, 0.01); noise(0.09, 2600, 2.4, 0.14); },
+    heal(){ if(playCustom("heal")) return; tone(523, 659, 0.18, "sine", 0.11); tone(659, 784, 0.24, "sine", 0.11, 0.07); tone(784, 1046, 0.3, "sine", 0.09, 0.14); },
+    buff(){ if(playCustom("buff")) return; tone(330, 495, 0.16, "triangle", 0.11); tone(495, 660, 0.22, "triangle", 0.1, 0.07); },
+    playerHit(){ if(playCustom("playerHit")) return; tone(115, 38, 0.24, "sawtooth", 0.24); noise(0.16, 720, 0.9, 0.22, 0, "lowpass"); },
+    legendaryCharge(){ if(playCustom("legendaryCharge")) return; tone(95, 320, 0.42, "sawtooth", 0.12); tone(220, 660, 0.42, "triangle", 0.11); noise(0.38, 1600, 1.4, 0.1); },
+    legendaryBreakout(){ if(playCustom("legendaryBreakout")) return; tone(78, 32, 0.85, "sawtooth", 0.24); tone(110, 55, 0.7, "sine", 0.3); noise(0.32, 3400, 1.2, 0.24); noise(0.55, 900, 0.7, 0.2, 0.04, "lowpass"); tone(660, 1320, 0.25, "triangle", 0.1, 0.02); },
+    legendaryImpact(){ if(playCustom("legendaryImpact")) return; tone(90, 28, 0.48, "sine", 0.36); tone(180, 44, 0.36, "sawtooth", 0.18); noise(0.34, 1600, 0.75, 0.3); tone(880, 1760, 0.18, "triangle", 0.11); },
+    bossEntrance(){ if(playCustom("bossEntrance")) return; tone(58, 42, 1.25, "sawtooth", 0.22); tone(87, 65, 1.15, "triangle", 0.2, 0.04); tone(116, 54, 0.95, "sine", 0.26, 0.08); noise(0.65, 420, 0.8, 0.22, 0.05, "lowpass"); },
+    bossCharge(){ if(playCustom("bossCharge")) return; tone(130, 340, 0.48, "sawtooth", 0.14); tone(195, 420, 0.48, "triangle", 0.1, 0.06); },
+    bossUlt(){ if(playCustom("bossUlt")) return; tone(72, 26, 0.72, "sawtooth", 0.28); tone(144, 34, 0.62, "sine", 0.32); noise(0.48, 860, 0.65, 0.32, 0, "lowpass"); noise(0.25, 2400, 1.1, 0.18, 0.05); },
+    victory(){ if(playCustom("victory")) return; [523, 659, 784, 1046].forEach((f, i) => tone(f, f * 1.01, 0.28, "triangle", 0.11, i * 0.09)); },
+    defeat(){ if(playCustom("defeat")) return; [294, 261, 220, 164].forEach((f, i) => tone(f, f * 0.96, 0.35, "sawtooth", 0.09, i * 0.12)); },
+    coin(){ if(playCustom("coin")) return; tone(988, 1318, 0.12, "sine", 0.09); tone(1318, 1568, 0.16, "sine", 0.08, 0.06); },
+    click(){ tone(520, 380, 0.04, "triangle", 0.05); }
+  };
+  addEventListener("pointerdown", () => ensure(), { once: true });
+  return api;
+})();
+$("sfxbtn").addEventListener("click", () => { SFX.toggle(); SFX.click(); });
+
+/* ================= 60FPS CANVAS VFX ENGINE ================= */
+const FX = (() => {
+  const cv = $("fxcanvas"), ctx = cv.getContext("2d");
+  const particles = [], rings = [], slashes = [], bolts = [], speedBursts = [];
+  let running = false, lastT = 0;
+  function kick(){ if(!running){ running = true; lastT = performance.now(); requestAnimationFrame(loop); } }
+  function loop(now){
+    const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+    ctx.clearRect(0, 0, 1280, 720);
+    /* radial speed lines */
+    for(let i = speedBursts.length - 1; i >= 0; i--){
+      const sb = speedBursts[i]; sb.age += dt;
+      if(sb.age >= sb.dur){ speedBursts.splice(i, 1); continue; }
+      const a = (1 - sb.age / sb.dur) * sb.alpha;
+      ctx.save(); ctx.translate(640, 360); ctx.strokeStyle = sb.color; ctx.globalAlpha = a;
+      for(const l of sb.lines){
+        const r1 = l.r1 + sb.age * l.speed;
+        ctx.lineWidth = l.w; ctx.beginPath();
+        ctx.moveTo(Math.cos(l.ang) * r1, Math.sin(l.ang) * r1);
+        ctx.lineTo(Math.cos(l.ang) * (r1 + l.len), Math.sin(l.ang) * (r1 + l.len));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    /* shockwave rings */
+    for(let i = rings.length - 1; i >= 0; i--){
+      const r = rings[i]; r.age += dt;
+      if(r.age >= r.dur){ rings.splice(i, 1); continue; }
+      const p = r.age / r.dur, ease = 1 - Math.pow(1 - p, 3);
+      ctx.save(); ctx.globalAlpha = (1 - p) * 0.9; ctx.strokeStyle = r.color;
+      ctx.lineWidth = Math.max(1, r.lw * (1 - p));
+      ctx.shadowBlur = 18; ctx.shadowColor = r.color;
+      ctx.beginPath(); ctx.arc(r.x, r.y, r.r0 + (r.r1 - r.r0) * ease, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    /* blade slashes */
+    for(let i = slashes.length - 1; i >= 0; i--){
+      const s = slashes[i]; s.age += dt;
+      if(s.age >= s.dur){ slashes.splice(i, 1); continue; }
+      const p = s.age / s.dur, a = p < 0.25 ? p / 0.25 : 1 - (p - 0.25) / 0.75;
+      const ext = Math.min(1, p * 3.4);
+      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.ang); ctx.globalAlpha = a;
+      ctx.shadowBlur = 24; ctx.shadowColor = s.color;
+      const half = s.len * 0.5 * ext, thick = s.thick * (1 - p * 0.55);
+      ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.moveTo(-half, 0); ctx.quadraticCurveTo(0, -thick, half, 0); ctx.quadraticCurveTo(0, thick * 0.45, -half, 0); ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.moveTo(-half * 0.82, 0); ctx.quadraticCurveTo(0, -thick * 0.42, half * 0.82, 0); ctx.quadraticCurveTo(0, thick * 0.18, -half * 0.82, 0); ctx.fill();
+      ctx.restore();
+    }
+    /* lightning bolts */
+    for(let i = bolts.length - 1; i >= 0; i--){
+      const b = bolts[i]; b.age += dt;
+      if(b.age >= b.dur){ bolts.splice(i, 1); continue; }
+      ctx.save(); ctx.globalAlpha = 1 - b.age / b.dur; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.strokeStyle = b.color; ctx.lineWidth = 7; ctx.shadowBlur = 26; ctx.shadowColor = b.color;
+      ctx.beginPath(); b.pts.forEach((pt, idx) => idx ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1])); ctx.stroke();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.restore();
+    }
+    /* sparks & embers */
+    for(let i = particles.length - 1; i >= 0; i--){
+      const p = particles[i]; p.age += dt;
+      if(p.age >= p.life){ particles.splice(i, 1); continue; }
+      p.vx *= p.drag; p.vy = p.vy * p.drag + p.g * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const a = 1 - p.age / p.life;
+      ctx.save(); ctx.globalAlpha = a;
+      ctx.fillStyle = p.color; ctx.shadowBlur = p.glow; ctx.shadowColor = p.color;
+      if(p.streak){
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.r; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.032, p.y - p.vy * 0.032); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.4 + 0.6 * a), 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+    if(particles.length || rings.length || slashes.length || bolts.length || speedBursts.length){
+      requestAnimationFrame(loop);
+    } else { running = false; }
+  }
+  return {
+    sparks(x, y, color = "#ffd27d", count = 20, speed = 420, opts = {}){
+      for(let i = 0; i < count; i++){
+        const ang = (opts.baseAng != null ? opts.baseAng + rnd(-opts.spread, opts.spread) : rnd(0, Math.PI * 2));
+        const spd = rnd(speed * 0.35, speed);
+        particles.push({ x: x + rnd(-12, 12), y: y + rnd(-12, 12), vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+          r: rnd(opts.minR || 2, opts.maxR || 4.8), color, life: rnd(0.28, 0.62), age: 0,
+          drag: opts.drag || 0.93, g: opts.g != null ? opts.g : 480, glow: 12, streak: opts.streak !== false });
+      }
+      kick();
+    },
+    embers(color = "#ff9b4a", count = 26, area = { x0: 80, x1: 1200, y0: 440, y1: 720 }){
+      for(let i = 0; i < count; i++){
+        particles.push({ x: rnd(area.x0, area.x1), y: rnd(area.y0, area.y1), vx: rnd(-45, 45), vy: rnd(-260, -90),
+          r: rnd(1.8, 4.4), color, life: rnd(0.8, 1.7), age: 0, drag: 0.99, g: -35, glow: 14, streak: false });
+      }
+      kick();
+    },
+    shockwave(x, y, color = "#5eead4", r1 = 210, lw = 8, dur = 0.42){
+      rings.push({ x, y, color, r0: 18, r1, lw, dur, age: 0 }); kick();
+    },
+    slash(x, y, color = "#7ef7e4", opts = {}){
+      slashes.push({ x: x + rnd(-16, 16), y: y + rnd(-16, 16), color,
+        ang: opts.ang != null ? opts.ang : rnd(-0.85, -0.25), len: opts.len || 290, thick: opts.thick || 24, dur: opts.dur || 0.28, age: 0 });
+      if(opts.cross){
+        slashes.push({ x: x + rnd(-10, 10), y: y + rnd(-10, 10), color: opts.color2 || color,
+          ang: (opts.ang != null ? opts.ang : -0.5) + 1.15, len: (opts.len || 290) * 0.9, thick: (opts.thick || 24) * 0.82, dur: (opts.dur || 0.28) + 0.05, age: 0 });
+      }
+      kick();
+    },
+    bolt(x, y, color = "#7ee8ff"){
+      const pts = [[x + rnd(-55, 55), 0]];
+      for(let s = 1; s <= 7; s++) pts.push([x + rnd(-38, 38) * (1 - s / 9), (y / 7) * s]);
+      pts.push([x, y]);
+      bolts.push({ pts, color, dur: 0.3, age: 0 });
+      this.sparks(x, y, color, 22, 460);
+      this.shockwave(x, y, color, 175, 6, 0.34);
+      kick();
+    },
+    speedlines(color = "rgba(255,230,160,.85)", dur = 0.5, count = 42, alpha = 0.55){
+      const lines = [];
+      for(let i = 0; i < count; i++) lines.push({ ang: (i / count) * Math.PI * 2 + rnd(-0.05, 0.05), r1: rnd(240, 390), len: rnd(140, 310), w: rnd(1.5, 4.2), speed: rnd(260, 620) });
+      speedBursts.push({ color, dur, alpha, lines, age: 0 }); kick();
+    }
+  };
+})();
+
+/* ================= CAMERA SHAKE / HIT-STOP / HERO THEMES ================= */
+function cameraShake(intensity = 9, duration = 300){
+  const frames = [], steps = Math.max(6, Math.round(duration / 34));
+  for(let i = 0; i < steps; i++){
+    const decay = 1 - i / steps;
+    const dx = (Math.random() * 2 - 1) * intensity * decay;
+    const dy = (Math.random() * 2 - 1) * intensity * 0.72 * decay;
+    const rot = (Math.random() * 2 - 1) * (intensity * 0.055) * decay;
+    frames.push({ transform: `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)` });
+  }
+  frames.push({ transform: "translate(0,0) rotate(0deg)" });
+  stageCam.animate(frames, { duration, easing: "ease-out" });
+}
+function cameraZoomPunch(scale = 1.045, duration = 260){
+  stageCam.animate([
+    { transform: "scale(1)" },
+    { transform: `scale(${scale})`, offset: 0.24 },
+    { transform: "scale(1)" }
+  ], { duration, easing: "cubic-bezier(.2,.8,.3,1)" });
+}
+function hitStop(ms = 55, targetEl = $("enemy"), heavy = false){
+  if(!targetEl) return;
+  const cls = heavy ? "hitflash-heavy" : "hitflash";
+  targetEl.classList.remove("hitflash", "hitflash-heavy");
+  void targetEl.offsetWidth;
+  targetEl.classList.add(cls);
+  clearTimeout(targetEl._hsT);
+  targetEl._hsT = setTimeout(() => targetEl.classList.remove("hitflash", "hitflash-heavy"), ms);
+}
+function hurtVignette(){
+  $("hurtvignette").animate([{ opacity: 0.92 }, { opacity: 0 }], { duration: 420, easing: "ease-out" });
+}
+const HERO_THEME = {
+  hero:       { accent:"#5eead4", glow:"rgba(94,234,212,.85)",  startRatio:0.48, objPos:"center 20%", elFx:"slash" },
+  phoenix:    { accent:"#ff9447", glow:"rgba(255,120,40,.9)",  startRatio:0.48, objPos:"center 22%", elFx:"fire" },
+  angel:      { accent:"#ffe28a", glow:"rgba(255,215,105,.9)", startRatio:0.48, objPos:"center 20%", elFx:"heal" },
+  ignis:      { accent:"#ff5c38", glow:"rgba(255,75,35,.92)",  startRatio:0.48, objPos:"center 24%", elFx:"fire" },
+  babydragon: { accent:"#c084fc", glow:"rgba(168,85,247,.9)",  startRatio:0.46, objPos:"center center", elFx:"bolt" },
+  valkyrie:   { accent:"#5cd6ff", glow:"rgba(56,189,248,.92)", startRatio:0.48, objPos:"center 20%", elFx:"bolt" },
+  assassin:   { accent:"#fb7185", glow:"rgba(244,63,94,.9)",   startRatio:0.48, objPos:"center 22%", elFx:"slash" },
+  priestess:  { accent:"#93c5fd", glow:"rgba(147,197,253,.9)", startRatio:0.48, objPos:"center 20%", elFx:"heal" }
+};
+const _vidPreload = new Set();
+function preloadLegendaryVideos(list){
+  for(const inst of list){
+    const d = CARDS[inst.id];
+    if(d && d.video && !_vidPreload.has(d.video)){
+      _vidPreload.add(d.video);
+      const v = document.createElement("video"); v.preload = "auto"; v.muted = true; v.src = d.video; v.load();
+    }
+  }
+}
+function fit(){ const w = innerWidth, h = innerHeight;
+  if(h > w){ window.__rot = 90; window.__scale = Math.min(w / 720, h / 1280); }
+  else { window.__rot = 0; window.__scale = Math.min(w / 1280, h / 720); }
+  stage.style.transform = `translate(-50%,-50%) rotate(${window.__rot}deg) scale(${window.__scale})`; }
+addEventListener("resize", fit);
+addEventListener("orientationchange", () => { fit(); setTimeout(fit, 250); setTimeout(fit, 600); });
+fit();
+const rnd = (a,b)=> a + Math.random()*(b-a);
+const irnd = (a,b)=> Math.floor(rnd(a, b+1));
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+const CARDS = {
+  strike:  { name:"斩击", type:"攻击", cost:1, rarity:"common", glyph:"⚔️", grad:"linear-gradient(150deg,#31424f,#141d26)", dmg:8, up:{dmg:3} },
+  guard:   { name:"铁壁", type:"技能", cost:1, rarity:"common", glyph:"🛡️", grad:"linear-gradient(150deg,#2c3844,#131a21)", block:8, up:{block:3} },
+  windstep:{ name:"疾风步", type:"技能", cost:1, rarity:"common", glyph:"🌀", grad:"linear-gradient(150deg,#1d3a44,#101c22)", block:5, draw:1, up:{block:3} },
+  blood:   { name:"血怒", type:"技能", cost:0, rarity:"rare", glyph:"🩸", grad:"linear-gradient(150deg,#46222b,#1d1015)", selfdmg:3, energy:2, up:{selfdmg:1} },
+  dual:    { name:"双连斩", type:"攻击", cost:1, rarity:"common", glyph:"🗡️", grad:"linear-gradient(150deg,#31424f,#141d26)", dmg:5, hits:2, up:{dmg:2} },
+  heavy:   { name:"重斩", type:"攻击", cost:2, rarity:"common", glyph:"🪓", grad:"linear-gradient(150deg,#3a3230,#1a1512)", dmg:14, up:{dmg:4} },
+  bash:    { name:"猛击", type:"攻击", cost:2, rarity:"common", glyph:"🔨", grad:"linear-gradient(150deg,#33393f,#15181c)", dmg:10, vuln:2, up:{dmg:3} },
+  frost:   { name:"寒霜之环", type:"技能", cost:1, rarity:"common", art:"assets/spell-frost.webp", block:7, weak:1, up:{block:3} },
+  cleave:  { name:"回旋刃", type:"攻击", cost:1, rarity:"common", glyph:"🌪️", grad:"linear-gradient(150deg,#2c3644,#12181f)", dmg:8, drawkill:1, up:{dmg:3} },
+  thunder: { name:"雷霆万钧", type:"攻击", cost:2, rarity:"rare", art:"assets/spell-lightning.webp", dmg:15, vuln:2, up:{dmg:4} },
+  firestorm:{ name:"烈焰风暴", type:"攻击", cost:2, rarity:"rare", art:"assets/spell-firestorm.webp", dmg:12, burn:4, up:{dmg:3,burn:1} },
+  rage:    { name:"怒意升腾", type:"技能", cost:1, rarity:"rare", glyph:"🔥", grad:"linear-gradient(150deg,#472a18,#1d120a)", str:2, up:{str:1} },
+  insight: { name:"破绽洞悉", type:"技能", cost:1, rarity:"rare", glyph:"👁️", grad:"linear-gradient(150deg,#33284a,#141021)", vuln:3, draw:1, up:{vuln:1} },
+  vamp:    { name:"噬血斩", type:"攻击", cost:1, rarity:"rare", glyph:"🦇", grad:"linear-gradient(150deg,#402030,#180d14)", dmg:9, lifesteal:1, up:{dmg:3} },
+  chain:   { name:"连锁雷暴", type:"攻击", cost:2, rarity:"rare", glyph:"🌩️", grad:"linear-gradient(150deg,#274058,#101a26)", dmg:7, hits:3, up:{dmg:2} },
+  bulwark: { name:"磐石之躯", type:"技能", cost:2, rarity:"rare", glyph:"🗿", grad:"linear-gradient(150deg,#3a3f45,#17191d)", block:16, up:{block:5} },
+  adrenal: { name:"肾上腺素", type:"技能", cost:0, rarity:"rare", glyph:"💉", grad:"linear-gradient(150deg,#1e4034,#0d1d17)", draw:2, up:{draw:1} },
+  hero:    { name:"苍流 · 银发剑姬", type:"传说", cost:3, rarity:"legendary", video:"assets/hero-breakout.mp4", poster:"assets/hero.webp", dmg:18, block:12, bond:"战斗开始获得 6 点格挡", up:{dmg:5,block:4} },
+  phoenix: { name:"烬羽 · 凤凰骑士", type:"传说", cost:3, rarity:"legendary", video:"assets/phoenix-breakout.mp4", poster:"assets/phoenix.webp", dmg:22, burn:5, bond:"灼烧每跳额外 +1 伤害", up:{dmg:6,burn:2} },
+  angel:   { name:"诺雅 · 时计天使", type:"传说", cost:3, rarity:"legendary", video:"assets/angel-breakout.mp4", poster:"assets/angel.webp", heal:12, block:14, draw:2, bond:"每回合开始回复 2 点生命", up:{heal:5,block:4} },
+  ignis:   { name:"伊格尼斯 · 焚天炎魔", type:"传说", cost:3, rarity:"legendary", video:"assets/ignis-breakout.mp4", poster:"assets/ignis.webp", dmg:16, burn:6, bond:"荆棘 +3", up:{dmg:5,burn:2} },
+  babydragon:{ name:"渊喉 · 深渊幼龙", type:"传说", cost:3, rarity:"legendary", video:"assets/dragon-breakout.mp4", poster:"assets/boss-dragon.webp", dmg:24, vuln:2, bond:"敌人开局获得 1 层易伤", up:{dmg:6} },
+  valkyrie:{ name:"薇拉 · 雷霆战姬", type:"传说", cost:3, rarity:"legendary", video:"assets/valkyrie-breakout.mp4", poster:"assets/valkyrie.webp", dmg:8, hits:3, weak:1, bond:"第一回合多抽 1 张牌", up:{dmg:2} },
+  assassin:{ name:"绯 · 影舞刺客", type:"传说", cost:3, rarity:"legendary", video:"assets/assassin-breakout.mp4", poster:"assets/assassin.webp", dmg:10, hits:2, draw:2, bond:"连击门槛降低（1 次即触发）", up:{dmg:3} },
+  priestess:{ name:"塞拉 · 月光祭司", type:"传说", cost:3, rarity:"legendary", video:"assets/priestess-breakout.mp4", poster:"assets/priestess.webp", heal:16, block:10, cleanse:1, bond:"休息点回复量 +15%", up:{heal:6,block:4} },
+  shieldbash:{ name:"盾击", type:"攻击", cost:1, rarity:"common", glyph:"🛡️", grad:"linear-gradient(150deg,#33424e,#141d24)", blockDmg:1, up:{block:4} },
+  thornmail:{ name:"荆棘甲", type:"技能", cost:1, rarity:"common", glyph:"🌵", grad:"linear-gradient(150deg,#274435,#0f1d15)", block:4, thorns:3, up:{thorns:2,block:2} },
+  sprint:  { name:"疾跑", type:"技能", cost:1, rarity:"common", glyph:"🏃", grad:"linear-gradient(150deg,#2c4048,#121c20)", draw:2, up:{draw:1} },
+  pounce:  { name:"猛扑", type:"攻击", cost:1, rarity:"common", glyph:"🐾", grad:"linear-gradient(150deg,#3d3423,#1a150c)", dmg:7, comboDmg:5, up:{dmg:2,comboDmg:2} },
+  chargeblade:{ name:"蓄力斩", type:"攻击", cost:1, rarity:"common", glyph:"🔋", grad:"linear-gradient(150deg,#2e4038,#121c17)", dmg:6, growDmg:2, up:{dmg:2,growDmg:1} },
+  dodge:   { name:"闪避", type:"技能", cost:1, rarity:"common", glyph:"💨", grad:"linear-gradient(150deg,#31434a,#131e22)", block:5, jifeng:1, up:{block:3} },
+  detonate:{ name:"引爆", type:"技能", cost:1, rarity:"rare", glyph:"💥", grad:"linear-gradient(150deg,#472b16,#1d1108)", detonateVuln:6, up:{detonateVuln:2} },
+  burnburst:{ name:"燃爆", type:"攻击", cost:1, rarity:"rare", glyph:"🧨", grad:"linear-gradient(150deg,#4a2418,#1e0f0a)", detonateBurn:4, up:{detonateBurn:2} },
+  wolfpact:{ name:"灵契 · 影狼", type:"技能", cost:2, rarity:"rare", glyph:"🐺", grad:"linear-gradient(150deg,#26343e,#10181d)", summon:5, up:{summon:2} },
+  bloodritual:{ name:"血祭", type:"技能", cost:0, rarity:"rare", glyph:"🕯️", grad:"linear-gradient(150deg,#40202c,#170c11)", selfdmg:5, draw:3, up:{draw:1} },
+  aegisretal:{ name:"铁壁反击", type:"技能", cost:2, rarity:"rare", glyph:"⚜️", grad:"linear-gradient(150deg,#3a3f2a,#171a10)", block:10, thorns:4, up:{block:4,thorns:1} },
+  surge:   { name:"能量涌动", type:"技能", cost:0, rarity:"rare", glyph:"🔆", grad:"linear-gradient(150deg,#3d3a1c,#1a180c)", energy:1, draw:1, up:{energy:1} },
+  dualcast:{ name:"双持咒", type:"技能", cost:1, rarity:"rare", glyph:"🗡️", grad:"linear-gradient(150deg,#333d4d,#131922)", dual:1, up:{draw:1} },
+  execute: { name:"处刑", type:"攻击", cost:2, rarity:"rare", glyph:"☠️", grad:"linear-gradient(150deg,#3d1f2e,#180b12)", dmg:13, execute:1, up:{dmg:4} },
+  galeforce:{ name:"疾风咒", type:"技能", cost:1, rarity:"rare", glyph:"🍃", grad:"linear-gradient(150deg,#1f4034,#0c1c15)", jifeng:2, draw:1, up:{jifeng:1} },
+  shadowclone:{ name:"影分身", type:"技能", cost:1, rarity:"rare", glyph:"👥", grad:"linear-gradient(150deg,#2c2137,#110b18)", dual:1, draw:1, up:{draw:1} },
+  stormheart:{ name:"雷暴之心", type:"技能", cost:2, rarity:"rare", glyph:"💜", grad:"linear-gradient(150deg,#33224d,#120b20)", str:2, jifeng:1, up:{str:1} },
+  icewall: { name:"冰墙", type:"技能", cost:2, rarity:"common", glyph:"🧊", grad:"linear-gradient(150deg,#274b57,#0e1e24)", block:12, weak:1, up:{block:4} },
+  siphon:  { name:"噬能", type:"技能", cost:0, rarity:"rare", glyph:"🌀", grad:"linear-gradient(150deg,#3d2b12,#180f04)", energy:2, selfvuln:1, up:{energy:1} },
+  mark:    { name:"猎手印记", type:"技能", cost:1, rarity:"common", glyph:"🎯", grad:"linear-gradient(150deg,#40331c,#181106)", vuln:2, draw:1, up:{vuln:1} },
+  rebirth: { name:"回生术", type:"技能", cost:1, rarity:"rare", glyph:"🌿", grad:"linear-gradient(150deg,#1f4530,#0a1c12)", heal:8, cleanse:1, up:{heal:4} },
+  /* fused-only cards (never in reward/shop pools) */
+  pojun:   { name:"破军斩", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"⚔️", grad:"linear-gradient(150deg,#4a3220,#1d130a)", dmg:21 },
+  xuanwu:  { name:"玄武壁", type:"技能", cost:2, rarity:"rare", fused:true, glyph:"🐢", grad:"linear-gradient(150deg,#23403a,#0e1c18)", block:25 },
+  jiadun:  { name:"剑盾猛攻", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🛡️", grad:"linear-gradient(150deg,#3c3a24,#17160c)", dmg:12, block:12 },
+  jifenglian:{ name:"疾风连斩", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🌪️", grad:"linear-gradient(150deg,#1d4040,#0b1a1a)", dmg:9, hits:2, draw:1 },
+  tianfa:  { name:"天罚雷暴", type:"传说", cost:3, rarity:"legendary", fused:true, glyph:"⚡", grad:"linear-gradient(150deg,#3a2c58,#150f26)", dmg:10, hits:3, vuln:2 },
+  xuemo:   { name:"血魔降临", type:"技能", cost:2, rarity:"rare", fused:true, glyph:"👹", grad:"linear-gradient(150deg,#4d1f2a,#1e0b10)", selfdmg:4, energy:2, draw:2 },
+  ronghuo: { name:"熔火之心", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🌋", grad:"linear-gradient(150deg,#4d2a16,#1e1008)", dmg:14, burn:5, thorns:3 },
+  shikong: { name:"时空裂隙", type:"技能", cost:1, rarity:"rare", fused:true, glyph:"🕳️", grad:"linear-gradient(150deg,#2c2a4d,#100f1e)", draw:3, energy:1 },
+  yuntie:  { name:"陨铁重剑", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🗡️", grad:"linear-gradient(150deg,#3d3d46,#141418)", dmg:17, up:{dmg:5} },
+  jihan:   { name:"极寒之心", type:"技能", cost:2, rarity:"rare", fused:true, glyph:"💠", grad:"linear-gradient(150deg,#274b57,#0e1e24)", block:16, weak:2, up:{block:5} },
+  yingsha: { name:"影杀", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🗡️", grad:"linear-gradient(150deg,#2c2137,#0d0812)", dmg:14, execute:1, up:{dmg:4} },
+  shengguang:{ name:"圣光审判", type:"传说", cost:3, rarity:"legendary", fused:true, glyph:"⚖️", grad:"linear-gradient(150deg,#4d4420,#1c1808)", dmg:12, heal:8, up:{dmg:4,heal:3} },
+  baolie:  { name:"爆裂旋风", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"💥", grad:"linear-gradient(150deg,#4d2a16,#1e0e06)", dmg:16, burn:3, up:{dmg:5} },
+  chaodao: { name:"超导之环", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🔆", grad:"linear-gradient(150deg,#274b57,#0d1a20)", dmg:10, hits:2, weak:1, up:{dmg:3} },
+  yingxue: { name:"影血魔刃", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🩸", grad:"linear-gradient(150deg,#3d1626,#12060c)", dmg:13, heal:5, up:{dmg:4} },
+  xueyan:  { name:"血焰狂暴", type:"技能", cost:1, rarity:"rare", fused:true, glyph:"🔥", grad:"linear-gradient(150deg,#4d1f16,#1c0a06)", str:2, burn:2, selfdmg:3, up:{str:1} },
+  leiying: { name:"雷影疾行", type:"技能", cost:1, rarity:"rare", fused:true, glyph:"🌩️", grad:"linear-gradient(150deg,#23304d,#0a0f1c)", draw:2, jifeng:2, up:{draw:1} },
+  shuangtie:{ name:"霜铁壁垒", type:"技能", cost:2, rarity:"rare", fused:true, glyph:"🧱", grad:"linear-gradient(150deg,#2c4250,#0e161c)", block:18, thorns:2, up:{block:5} },
+  zhouye:  { name:"昼夜轮转", type:"技能", cost:2, rarity:"rare", fused:true, glyph:"☯️", grad:"linear-gradient(150deg,#333333,#101010)", dmg:10, heal:10, up:{dmg:3,heal:3} },
+  liming:  { name:"黎明之焰", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🌅", grad:"linear-gradient(150deg,#4d3a16,#1c1406)", dmg:14, burn:2, heal:4, up:{dmg:4} },
+  leisha:  { name:"雷影袭杀", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"⚡", grad:"linear-gradient(150deg,#2c2440,#0e0a18)", dmg:16, vuln:1, up:{dmg:5} },
+  shuangfeng:{ name:"霜风之舞", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"❄️", grad:"linear-gradient(150deg,#274b4a,#0c1a1a)", dmg:9, hits:2, weak:1, up:{dmg:3} },
+  yingdun: { name:"影遁连斩", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🥷", grad:"linear-gradient(150deg,#262038,#0c0916)", dmg:12, hits:2, up:{dmg:3} },
+};
+const EL_ICONS = { "铁":"⚔️", "火":"🔥", "冰":"❄️", "雷":"⚡", "风":"🍃", "血":"🩸", "影":"🌑", "光":"✨" };
+const CARD_ELS = {
+  strike:"铁", guard:"铁", dual:"铁", heavy:"铁", bash:"铁", bulwark:"铁", shieldbash:"铁", thornmail:"铁", chargeblade:"铁", aegisretal:"铁", dualcast:"铁",
+  windstep:"风", cleave:"风", adrenal:"风", sprint:"风", pounce:"风", dodge:"风", galeforce:"风", swiftstrike:"风", hero:"风",
+  blood:"血", rage:"血", vamp:"血", bloodritual:"血",
+  frost:"冰", icewall:"冰",
+  thunder:"雷", chain:"雷", surge:"雷", stormheart:"雷", valkyrie:"雷",
+  firestorm:"火", detonate:"火", burnburst:"火", phoenix:"火", ignis:"火",
+  insight:"影", wolfpact:"影", execute:"影", siphon:"影", mark:"影", shadowclone:"影", babydragon:"影", assassin:"影",
+  angel:"光", priestess:"光", rebirth:"光",
+  pojun:"铁", xuanwu:"铁", jiadun:"铁", yuntie:"铁", jifenglian:"风", shikong:"风", tianfa:"雷", xuemo:"血", ronghuo:"火",
+  jihan:"冰", yingsha:"影", shengguang:"光", baolie:"火", chaodao:"雷", yingxue:"影", xueyan:"血", leiying:"雷",
+  shuangtie:"铁", zhouye:"影", liming:"火", leisha:"影", shuangfeng:"冰", yingdun:"影",
+};
+for(const id of Object.keys(CARDS)) CARDS[id].el = CARD_ELS[id] || "铁";
+const FUSION_SPECIFIC = {
+  "strike+strike": "pojun", "guard+guard": "xuanwu", "guard+strike": "jiadun",
+  "strike+windstep": "jifenglian", "chain+thunder": "tianfa", "blood+vamp": "xuemo",
+  "firestorm+thornmail": "ronghuo", "adrenal+surge": "shikong", "shadowclone+windstep": "yingdun",
+};
+const FUSION_SAME = { "铁":"yuntie", "火":"ronghuo", "冰":"jihan", "雷":"tianfa", "风":"jifenglian", "血":"xuemo", "影":"yingsha", "光":"shengguang" };
+const EL_EN = { "铁":"iron", "火":"fire", "冰":"ice", "雷":"bolt", "风":"wind", "血":"blood", "影":"shadow", "光":"light" };
+const FUSION_CROSS = {
+  "fire+wind": "baolie", "bolt+ice": "chaodao", "blood+shadow": "yingxue", "blood+fire": "xueyan",
+  "bolt+wind": "leiying", "ice+iron": "shuangtie", "light+shadow": "zhouye", "fire+light": "liming",
+  "bolt+shadow": "leisha", "ice+wind": "shuangfeng",
+};
+function fusionResult(a, b){
+  const key = [a, b].sort().join("+");
+  if(FUSION_SPECIFIC[key]) return { id: FUSION_SPECIFIC[key], up: false };
+  const ea = CARDS[a].el, eb = CARDS[b].el;
+  if(ea === eb) return { id: FUSION_SAME[ea], up: false };
+  const ck = [EL_EN[ea], EL_EN[eb]].sort().join("+");
+  if(FUSION_CROSS[ck]) return { id: FUSION_CROSS[ck], up: false };
+  return null;
+}
+const EQUIP = {
+  rustblade:  { slot:"weapon", name:"锈纹长剑", tier:1, icon:"🗡️", atk:1, desc:"攻击牌伤害 +1" },
+  knightblade:{ slot:"weapon", name:"骑士铭文剑", tier:2, icon:"⚔️", atk:2, desc:"攻击牌伤害 +2" },
+  dragonfang: { slot:"weapon", name:"龙牙裂刃", tier:3, icon:"🔱", atk:3, burnhit:1, desc:"攻击牌伤害 +3，命中附加 1 层灼烧" },
+  leathers:   { slot:"armor", name:"影织皮甲", tier:1, icon:"🥋", blk:1, desc:"卡牌获得的格挡 +1" },
+  chainmail:  { slot:"armor", name:"秘银锁甲", tier:2, icon:"🛡️", blk:2, desc:"卡牌获得的格挡 +2" },
+  dragonscale:{ slot:"armor", name:"龙鳞宝铠", tier:3, icon:"🐉", blk:3, thorns:2, desc:"格挡 +3，荆棘 +2" },
+  galependant:{ slot:"charm", name:"疾风坠", tier:1, icon:"🌀", startdraw:1, desc:"战斗开始时多抽 1 张牌" },
+  bloodstone: { slot:"charm", name:"血石", tier:2, icon:"🔴", afterheal:3, desc:"每场战斗胜利后回复 3 点生命" },
+  goldbag:    { slot:"charm", name:"贪婪金袋", tier:2, icon:"👛", goldmul:0.2, desc:"获得的金币 +20%" },
+  voidcore:   { slot:"charm", name:"虚空核心", tier:3, icon:"🔮", firstatk:3, desc:"每回合第一张攻击牌伤害 +3" },
+};
+const SLOT_NAMES = { weapon:"武器", armor:"护甲", charm:"饰品" };
+function equipStats(){ const s = { atk:0, blk:0, thorns:0, startdraw:0, afterheal:0, goldmul:0, firstatk:0, burnhit:0 };
+  if(!R) return s;
+  for(const slot of ["weapon","armor","charm"]){ const id = R.equip[slot]; if(!id) continue; const e = EQUIP[id];
+    for(const k of Object.keys(s)) if(e[k]) s[k] += e[k]; }
+  return s; }
+function randomEquip(maxTier){ const owned = new Set([...Object.values(R.equip), ...R.bag]);
+  const pool = Object.keys(EQUIP).filter(id => !owned.has(id) && EQUIP[id].tier <= maxTier);
+  return pool.length ? pick(pool) : null; }
+function giveEquip(id){ if(!id) return null; R.bag.push(id); syncTopbar(); return EQUIP[id]; }
+function cardNums(inst){ const d = CARDS[inst.id]; const n = {};
+  for(const k of ["dmg","hits","block","draw","vuln","weak","burn","str","heal","energy","selfdmg","thorns","jifeng","comboDmg","detonateVuln","detonateBurn","summon","dual","growDmg","blockDmg","selfvuln","cleanse"]) if(d[k]) n[k]=d[k];
+  if(inst.up && d.up) for(const k in d.up) n[k]=(n[k]||0)+d.up[k];
+  if(inst.up && inst.id==="blood") n.selfdmg = Math.max(1, (d.selfdmg||3) - 1);
+  return n; }
+function cardText(inst){ const d = CARDS[inst.id], n = cardNums(inst); const p = [];
+  if(n.dmg) p.push(`造成 <span class="dmg"><b>${n.dmg}</b></span> 点伤害${n.hits?` × <b>${n.hits}</b>`:""}`);
+  if(n.block) p.push(`获得 <span class="blk"><b>${n.block}</b></span> 点格挡`);
+  if(n.vuln) p.push(`施加 <b>${n.vuln}</b> 层易伤`);
+  if(n.weak) p.push(`施加 <b>${n.weak}</b> 层虚弱`);
+  if(n.burn) p.push(`施加 <b>${n.burn}</b> 层灼烧`);
+  if(n.str) p.push(`获得 <b>${n.str}</b> 点力量`);
+  if(n.heal) p.push(`回复 <span class="heal"><b>${n.heal}</b></span> 点生命`);
+  if(n.draw) p.push(`抽 <b>${n.draw}</b> 张牌`);
+  if(n.energy) p.push(`获得 <b>${n.energy}</b> 点能量`);
+  if(n.selfdmg) p.push(`失去 <b>${n.selfdmg}</b> 点生命`);
+  if(d.lifesteal) p.push(`回复等同伤害一半的生命`);
+  if(d.drawkill) p.push(`击杀时抽 <b>1</b> 张牌`);
+  if(n.blockDmg) p.push(`造成等同于<b>当前格挡</b>的伤害`);
+  if(n.thorns) p.push(`获得 <b>${n.thorns}</b> 点荆棘（受击反伤）`);
+  if(n.jifeng) p.push(`获得 <b>${n.jifeng}</b> 层疾风（下次攻击 +${n.jifeng * 2}）`);
+  if(n.comboDmg) p.push(`连击≥2 时额外 +<b>${n.comboDmg}</b> 伤害`);
+  if(n.growDmg) p.push(`本场每打过一次此牌，伤害 +<b>${n.growDmg}</b>`);
+  if(n.detonateVuln) p.push(`引爆易伤：每层造成 <b>${n.detonateVuln}</b> 伤害并清除`);
+  if(n.detonateBurn) p.push(`引爆灼烧：每层造成 <b>${n.detonateBurn}</b> 伤害并清除`);
+  if(n.summon) p.push(`召唤影狼：每回合结束咬伤敌人 <b>${n.summon}</b> 点`);
+  if(n.dual) p.push(`你的下一张攻击牌多打 <b>1</b> 段`);
+  if(d.execute) p.push(`处刑：敌人生命 ≤30% 时伤害<b>翻倍</b>`);
+  if(n.selfvuln) p.push(`自身获得 <b>${n.selfvuln}</b> 层易伤`);
+  if(n.cleanse) p.push(`净化自身全部负面状态`);
+  if(d.bond) p.push(`<span style="color:#f5b8d0">💞 羁绊（在牌组中即生效）：${d.bond}</span>`);
+  return p.join("<br>"); }
+
+const RELICS = {
+  ember:  { icon:"🔆", name:"燃芯石", desc:"每场战斗的第一回合，能量 +1。" },
+  aegis:  { icon:"🛡️", name:"铁壁纹章", desc:"每个回合开始时，获得 2 点格挡。" },
+  fang:   { icon:"🦷", name:"嗜血之牙", desc:"击杀敌人时，回复 4 点生命。" },
+  whet:   { icon:"🗡️", name:"锋锐磨石", desc:"你的攻击牌伤害 +1。" },
+  seal:   { icon:"🪙", name:"商贾金印", desc:"获得的金币 +25%。" },
+  crystal:{ icon:"💠", name:"生命水晶", desc:"获得时：最大生命 +12，并回复 12。" },
+  boots:  { icon:"👢", name:"疾行之靴", desc:"每个回合多抽 1 张牌。" },
+  spring: { icon:"🕊️", name:"复苏之羽", desc:"休息点的回复效果 +30%。" },
+  mirror: { icon:"🪞", name:"虚空之镜", desc:"战斗开始时，敌人获得 1 层易伤。" },
+  dragonheart:{ icon:"❤️‍🔥", name:"龙心", desc:"获得时：最大生命 +16，并回复 16。（Boss 遗物）" },
+};
+const hasRelic = id => R && R.relics.includes(id);
+
+const ENEMIES = {
+  shadow: { name:"影袭者", en:"SHADOW STALKER", img:"assets/enemy-shadow.webp", hp:40,
+    moves:[ {t:"atk", v:6}, {t:"atk", v:6}, {t:"atk", v:11} ] },
+  cultist:{ name:"诡面祭司", en:"MASKED CULTIST", img:"assets/enemy-cultist.webp", hp:46,
+    moves:[ {t:"vuln", v:1}, {t:"atk", v:8}, {t:"buff", v:2}, {t:"atk", v:10} ] },
+  wraith: { name:"深渊骑士", en:"ABYSS KNIGHT", img:"assets/enemy-wraith.webp", hp:64,
+    moves:[ {t:"atk", v:12}, {t:"def", v:10}, {t:"atk", v:16} ] },
+  golem:  { name:"深渊魔像", en:"ABYSS GOLEM", img:"assets/enemy-golem.webp", hp:80,
+    moves:[ {t:"atk", v:14}, {t:"def", v:12}, {t:"atk", v:18} ] },
+  warlock:{ name:"深渊术士", en:"ABYSS WARLOCK", img:"assets/enemy-warlock.webp", hp:52,
+    moves:[ {t:"vuln", v:1}, {t:"atk", v:9}, {t:"atk", v:13}, {t:"buff", v:2} ] },
+  lavabeast:{ name:"熔岩魔兽", en:"MAGMA HOUND", img:"assets/enemy-lavabeast.webp", hp:58,
+    moves:[ {t:"atk", v:11}, {t:"atk", v:11}, {t:"burnp", v:3}, {t:"atk", v:15} ] },
+};
+const BOSSES = {
+  1:{ name:"虚蚀骑士王", en:"KING OF EROSION", img:"assets/enemy-wraith.webp", hp:115, mech:"erosion", ultName:"虚蚀斩", ultDmg:26,
+    moves:[ {t:"atk", v:14}, {t:"def", v:12}, {t:"atkx", v:10, n:2}, {t:"atk", v:20} ] },
+  2:{ name:"裂芯魔像", en:"COREBREAK GOLEM", img:"assets/enemy-golem.webp", hp:165, mech:"core", ultName:"裂芯重击", ultDmg:30,
+    moves:[ {t:"def", v:15}, {t:"atk", v:16}, {t:"buff", v:2}, {t:"atk", v:22} ] },
+  3:{ name:"深渊巨龙 · 喉", en:"THE ABYSSAL THROAT", img:"assets/boss-dragon.webp", hp:230, mech:"dragon", ultName:"龙焰吐息", ultDmg:24, ultBurn:3,
+    moves:[ {t:"atk", v:18}, {t:"burnp", v:3}, {t:"atkx", v:12, n:2}, {t:"atk", v:26}, {t:"def", v:20} ] },
+  4:{ name:"熔火兽王 · 拉格纳", en:"RAGNAR THE MAGMA KING", img:"assets/enemy-lavabeast.webp", hp:275, mech:"magma", ultName:"熔岩喷发", ultDmg:30, ultBurn:2,
+    moves:[ {t:"atk", v:20}, {t:"burnp", v:3}, {t:"atk", v:25}, {t:"def", v:18} ] },
+  5:{ name:"虚空君主 · 终焉", en:"THE VOID SOVEREIGN", img:"assets/boss-voidlord.webp", hp:340, mech:"void", ultName:"虚空湮灭", ultDmg:34,
+    moves:[ {t:"atk", v:22}, {t:"vuln", v:1}, {t:"atkx", v:13, n:2}, {t:"atk", v:28}, {t:"def", v:22} ] },
+  6:{ name:"熔火兽王 · 真焰", en:"RAGNAR TRUEFLAME", img:"assets/enemy-lavabeast.webp", hp:370, mech:"magma", ultName:"熔岩喷发", ultDmg:32, ultBurn:2,
+    moves:[ {t:"atk", v:24}, {t:"burnp", v:3}, {t:"atk", v:29}, {t:"def", v:22} ] },
+  7:{ name:"虚空君主 · 镜像", en:"THE VOID MIRROR", img:"assets/boss-voidlord.webp", hp:420, mech:"void", ultName:"虚空湮灭", ultDmg:36,
+    moves:[ {t:"atk", v:26}, {t:"vuln", v:1}, {t:"atkx", v:15, n:2}, {t:"atk", v:32}, {t:"def", v:26} ] },
+  8:{ name:"深渊祖龙 · 始祖", en:"THE PROGENITOR", img:"assets/boss-dragon.webp", hp:470, mech:"dragon", ultName:"龙焰吐息", ultDmg:28, ultBurn:4,
+    moves:[ {t:"atk", v:24}, {t:"burnp", v:4}, {t:"atkx", v:14, n:2}, {t:"atk", v:34}, {t:"def", v:26} ] },
+  9:{ name:"焚天魔神 · 伊格尼斯", en:"IGNIS THE WORLD-BURNER", img:"assets/ignis.webp", hp:520, mech:"core", ultName:"焚天灭世", ultDmg:38,
+    moves:[ {t:"atk", v:28}, {t:"burnp", v:3}, {t:"atk", v:36}, {t:"def", v:28} ] },
+  10:{ name:"混沌主宰 · 终焉之喉", en:"THE CHAOS SOVEREIGN", img:"assets/boss-voidlord.webp", hp:580, mech:"chaos", ultName:"混沌湮灭", ultDmg:42,
+    moves:[ {t:"atk", v:30}, {t:"vuln", v:1}, {t:"atkx", v:16, n:2}, {t:"atk", v:38}, {t:"def", v:30} ] },
+};
+
+/* ================= RUN STATE ================= */
+let R = null, C = null;
+let REC = JSON.parse(localStorage.getItem("abyss_rec") || '{"wins":0,"runs":0,"best":0}');
+function saveRec(){ localStorage.setItem("abyss_rec", JSON.stringify(REC)); }
+function renderStartRecords(){ $("startrecords").innerHTML =
+  `历史战绩：通关 <b>${REC.wins}</b> 次 · 出征 <b>${REC.runs}</b> 次 · 最深抵达 <b>${REC.best ? "第 " + REC.best + " 层" : "—"}</b>`; }
+renderStartRecords();
+
+function toast(msg, ms=2100){ const t = $("toast"); t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(t._h); t._h = setTimeout(()=> t.style.opacity = 0, ms); }
+function showScreen(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
+  if(name) $("screen-" + name).classList.add("on"); }
+function closePanels(){ document.querySelectorAll(".panelwrap").forEach(p=>p.classList.remove("on")); }
+function openPanel(id){ closePanels(); $(id).classList.add("on"); }
+function syncTopbar(){ if(!R) return;
+  $("tb-act").textContent = "第 " + R.act + " 层";
+  $("tb-hp").textContent = `${Math.max(0,R.hp)}/${R.maxhp}`;
+  $("tb-gold").textContent = R.gold;
+  $("tb-deck").textContent = R.deck.length;
+  $("relicbar").innerHTML = R.relics.map(id=>{ const r = RELICS[id];
+    return `<div class="relicslot">${r.icon}<div class="rtip"><b style="color:#f5ddab">${r.name}</b><br>${r.desc}</div></div>`; }).join(""); }
+function gainGold(n){ if(hasRelic("seal")) n = Math.round(n * 1.25);
+  const gm = equipStats().goldmul; if(gm) n = Math.round(n * (1 + gm));
+  R.gold += n; syncTopbar(); return n; }
+function healPlayer(n){ R.hp = Math.min(R.maxhp, R.hp + n); syncTopbar(); }
+function damagePlayerRaw(n){ R.hp -= n; syncTopbar(); }
+function giveRelic(id){ if(!id || R.relics.includes(id)) return null;
+  R.relics.push(id);
+  if(id === "crystal"){ R.maxhp += 12; healPlayer(12); }
+  if(id === "dragonheart"){ R.maxhp += 16; healPlayer(16); }
+  syncTopbar(); return RELICS[id]; }
+function randomRelic(bossOnly){ const pool = Object.keys(RELICS).filter(id =>
+  !R.relics.includes(id) && (bossOnly ? id === "dragonheart" : id !== "dragonheart"));
+  return pool.length ? pick(pool) : null; }
+
+/* ================= MAP ================= */
+const NODE_META = {
+  battle:{ icon:"⚔️", label:"战斗" }, elite:{ icon:"🔥", label:"精英" }, event:{ icon:"❓", label:"事件" },
+  shop:{ icon:"🛒", label:"商店" }, rest:{ icon:"🏕", label:"休息" }, boss:{ icon:"👑", label:"Boss" } };
+function genMap(act){
+  const cols = 8, lanes = 5, nodes = [];
+  const laneY = l => 62 + l * 98, colX = c => 78 + c * 128;
+  for(let c = 0; c < cols; c++){
+    let ls;
+    if(c === cols - 1) ls = [2];
+    else if(c === 0) ls = shuffle([0,1,2,3,4]).slice(0, 2);
+    else ls = shuffle([0,1,2,3,4]).slice(0, irnd(2,3));
+    for(const l of ls){
+      let type = "battle";
+      if(c === cols - 1) type = "boss";
+      else if(c === cols - 2) type = "rest";
+      else if(c >= 1){
+        const r = Math.random();
+        type = r < .48 ? "battle" : r < .63 ? "event" : r < .76 ? "shop" : r < .88 ? "rest" : (c >= 2 ? "elite" : "battle");
+      }
+      nodes.push({ id: nodes.length, col: c, lane: l, x: colX(c), y: laneY(l), type, next: [], done: false });
+    }
+  }
+  /* guarantee a shop and an elite per act */
+  const mids = nodes.filter(n => n.col >= 2 && n.col <= 4 && n.type === "battle");
+  if(mids.length && !nodes.some(n => n.type === "shop")) pick(mids).type = "shop";
+  const mids2 = nodes.filter(n => n.col >= 2 && n.col <= 5 && n.type === "battle");
+  if(mids2.length && !nodes.some(n => n.type === "elite")) pick(mids2).type = "elite";
+  for(const n of nodes){
+    if(n.col === cols - 1) continue;
+    const nextCol = nodes.filter(m => m.col === n.col + 1);
+    let cands = nextCol.filter(m => Math.abs(m.lane - n.lane) <= 1);
+    if(!cands.length) cands = nextCol.slice().sort((a, b) => Math.abs(a.lane - n.lane) - Math.abs(b.lane - n.lane)).slice(0, 1);
+    shuffle(cands);
+    n.next = cands.slice(0, irnd(1, Math.min(2, cands.length))).map(m => m.id);
+  }
+  /* prune unreachable: keep wiring until every node is reachable from col0 */
+  for(let pass = 0; pass < 12; pass++){
+    const reach = new Set(nodes.filter(n => n.col === 0).map(n => n.id));
+    let grew = true;
+    while(grew){ grew = false;
+      for(const n of nodes) if(reach.has(n.id)) for(const m of n.next) if(!reach.has(m)){ reach.add(m); grew = true; } }
+    const orphans = nodes.filter(n => !reach.has(n.id) && n.col > 0);
+    if(!orphans.length) break;
+    for(const o of orphans){
+      const prevCol = nodes.filter(m => m.col === o.col - 1 && reach.has(m.id));
+      if(prevCol.length){ prevCol.sort((a, b) => Math.abs(a.lane - o.lane) - Math.abs(b.lane - o.lane));
+        if(!prevCol[0].next.includes(o.id)) prevCol[0].next.push(o.id); }
+    }
+  }
+  return nodes;
+}
+function renderMap(){
+  const map = R.map;
+  $("mapact").textContent = R.act;
+  $("tb-where").textContent = "路线图";
+  const svg = $("mapsvg"); let lines = "";
+  for(const n of map) for(const nid of n.next){ const m = map[nid];
+    const active = R.pos === n.id || (R.pos === null && n.col === 0);
+    lines += `<line x1="${n.x}" y1="${n.y}" x2="${m.x}" y2="${m.y}" stroke="${active ? 'rgba(240,212,138,.55)' : 'rgba(150,190,210,.22)'}" stroke-width="2.5" stroke-dasharray="7 6"/>`; }
+  svg.innerHTML = lines;
+  const avail = new Set(R.pos === null ? map.filter(n => n.col === 0).map(n => n.id) : (map[R.pos] ? map[R.pos].next : []));
+  $("mapnodes").innerHTML = map.map(n => {
+    const cls = ["node", n.type, R.pos === n.id ? "here" : "", n.done ? "done" : "", avail.has(n.id) ? "avail" : ""].join(" ");
+    return `<div class="${cls}" data-node="${n.id}" style="left:${n.x}px;top:${n.y}px">${NODE_META[n.type].icon}<span class="nlabel">${NODE_META[n.type].label}</span></div>`;
+  }).join("");
+  document.querySelectorAll("#mapnodes .node.avail").forEach(el =>
+    el.addEventListener("click", ()=> enterNode(+el.dataset.node)));
+  $("acttint").style.background = ["", "rgba(60,120,160,.16)", "rgba(130,80,200,.18)", "rgba(200,60,40,.2)", "rgba(255,110,30,.2)", "rgba(120,40,220,.24)", "rgba(255,80,20,.24)", "rgba(90,30,200,.26)", "rgba(220,50,60,.24)", "rgba(255,60,30,.28)", "rgba(160,0,220,.3)"][R.act] || "";
+  $("acttint").style.opacity = 1;
+}
+function enterNode(nid){
+  const n = R.map[nid]; R.pos = nid;
+  $("tb-where").textContent = NODE_META[n.type].label;
+  if(n.type === "battle" || n.type === "elite" || n.type === "boss") startCombat(n.type);
+  else if(n.type === "rest") openRest();
+  else if(n.type === "shop") openShop();
+  else if(n.type === "event") openEvent();
+}
+function nodeCleared(){
+  const n = R.map[R.pos]; if(n) n.done = true;
+  if(n && n.type === "boss"){
+    if(R.act >= 10) return victory();
+    R.act++; REC.best = Math.max(REC.best, R.act); saveRec();
+    R.map = genMap(R.act); R.pos = null;
+    toast(`👑 本层 Boss 已击败，进入深渊第 ${R.act} 层！`);
+  }
+  showScreen("map"); renderMap(); syncTopbar();
+}
+function startRun(endless){
+  R = { hp: 80, maxhp: 80, gold: 60, act: 1, pos: null, kills: 0, combats: 0,
+    deck: [], relics: [], map: null, equip: { weapon: null, armor: null, charm: null }, bag: [],
+    endless: !!endless, efloor: 0 };
+  const starter = ["strike","strike","strike","strike","guard","guard","guard","guard","windstep","blood","hero"];
+  R.deck = starter.map(id => ({ id, up: false }));
+  R.map = genMap(1);
+  REC.runs++; REC.best = Math.max(REC.best, 1); saveRec(); renderStartRecords();
+  closePanels(); $("banner").style.display = "none";
+  if(R.endless){ syncTopbar(); startEndlessFloor(); toast("♾️ 无尽深渊：活得越久，宝物越好！"); return; }
+  showScreen("map"); renderMap(); syncTopbar();
+  toast("⚔️ 冒险开始！选择路线节点前进");
+}
+function startEndlessFloor(){
+  R.efloor++;
+  const kind = R.efloor % 5 === 0 ? "boss" : R.efloor % 3 === 0 ? "elite" : "battle";
+  startCombat(kind);
+}
+$("startbtn").addEventListener("click", () => startRun(false));
+$("endlessbtn").addEventListener("click", () => startRun(true));
+$("bannerbtn").addEventListener("click", ()=>{ $("banner").style.display = "none"; showScreen("start"); renderStartRecords(); });
+$("deckbtn").addEventListener("click", ()=>{ if(R) openDeckView(); });
+$("deckclose").addEventListener("click", closePanels);
+function cardEl(inst, opts = {}){
+  const d = CARDS[inst.id];
+  const art = d.video
+    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline></video><span class="dyn">▶ 动态卡面</span>`
+    : d.art ? `<img src="${d.art}" alt="">`
+    : `<div style="position:absolute;inset:0;background:${d.grad}"></div><span class="glyph">${d.glyph}</span>`;
+  const el = document.createElement("div");
+  el.className = "card " + d.rarity + (opts.big ? " big" : "");
+  el.innerHTML = `${inst.up ? '<div class="uptag">强化 +</div>' : ""}<div class="cost">${d.cost}</div>
+    <div class="frame"><div class="art">${art}</div>
+    <div class="cname">${d.name}${inst.up ? "+" : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
+    <div class="ctext">${cardText(inst)}</div><div class="rgem"></div></div>`;
+  return el;
+}
+function deckGridInto(container, pickable, onPick){
+  container.innerHTML = "";
+  R.deck.forEach((inst, i)=>{ const el = cardEl(inst);
+    if(pickable && !(onPick === "upgrade" && inst.up)){ el.classList.add("pickable");
+      el.addEventListener("click", ()=> onPick(i)); }
+    container.appendChild(el); });
+}
+function openDeckView(){ $("deckcount").textContent = `共 ${R.deck.length} 张牌`;
+  deckGridInto(document.querySelector(".viewgrid"), false); openPanel("panel-deck"); }
+
+/* ================= COMBAT ================= */
+const WEAK = new URLSearchParams(location.search).has("weak");
+const AFFIXES = [
+  { id:"regen", name:"再生", desc:"每回合回复 6 点生命" },
+  { id:"thorns", name:"荆棘", desc:"受到攻击时反弹 3 点伤害" },
+  { id:"rage", name:"狂暴", desc:"生命低于一半时力量 +4" },
+  { id:"swift", name:"疾行", desc:"攻击伤害 +3" },
+];
+function applyBonds(){
+  const ids = new Set(R.deck.map(d => d.id)); const got = [];
+  if(ids.has("hero")){ C.pblock += 6; got.push("苍流·守护"); }
+  if(ids.has("phoenix")){ C.burnBonus = 1; got.push("烬羽·燃芯"); }
+  if(ids.has("angel")){ C.regen = 2; got.push("诺雅·祝福"); }
+  if(ids.has("ignis")){ C.thorns += 3; got.push("炎魔·熔甲"); }
+  if(ids.has("babydragon")){ C.vuln += 1; got.push("幼龙·龙威"); }
+  if(ids.has("valkyrie")){ C.bondDraw = 1; got.push("薇拉·雷涌"); }
+  if(ids.has("assassin")){ C.comboEase = 1; got.push("绯·影契"); }
+  if(got.length) setTimeout(() => toast("💞 英雄羁绊生效：" + got.join("、")), 400);
+}
+function startCombat(kind){
+  let tpl, hpMul = 1, dmgAdd = Math.min(12, Math.round((R.act - 1) * 1.6));
+  if(R.endless){
+    tpl = kind === "boss" ? pick(Object.values(BOSSES)) : ENEMIES[pick(Object.keys(ENEMIES))];
+    hpMul = (1 + (R.efloor - 1) * 0.18) * (kind === "elite" ? 1.5 : 1);
+    dmgAdd = Math.floor((R.efloor - 1) * 0.7) + (kind === "elite" ? 2 : 0);
+  }
+  else if(kind === "boss"){ tpl = BOSSES[R.act]; }
+  else { tpl = ENEMIES[pick(Object.keys(ENEMIES))];
+    hpMul = [1, 1.25, 1.5, 1.8, 2.1, 2.45, 2.8, 3.2, 3.6, 4.0][R.act - 1] * (kind === "elite" ? 1.5 : 1);
+    if(kind === "elite") dmgAdd += 2; }
+  let maxhp = Math.round(tpl.hp * hpMul); if(WEAK) maxhp = Math.round(maxhp * 0.3);
+  C = { kind, name: (kind === "elite" ? "精英 · " : "") + tpl.name, en: tpl.en, img: tpl.img,
+    hp: maxhp, maxhp, block: 0, str: 0, vuln: 0, weak: 0, burn: 0,
+    moves: tpl.moves, moveIdx: irnd(0, tpl.moves.length - 1), dmgAdd,
+    deck: shuffle(R.deck.map((inst, i) => ({ inst, uid: i }))), hand: [], discard: [],
+    energy: hasRelic("ember") ? 4 : 3, emax: 3, turn: 1,
+    pstr: 0, pvuln: 0, pweak: 0, pburn: 0, pblock: 0, busy: false, over: false,
+    thorns: equipStats().thorns, jifeng: 0, dual: 0, wolf: 0, combo: 0, playCounts: {}, firstAtkUsed: false,
+    mech: kind === "boss" ? tpl.mech : null, charging: false, mechTurns: 0, move: null, thresholdsUsed: [],
+    affix: null, rageUsed: false, burnBonus: 0, regen: 0, bondDraw: 0, comboEase: 0,
+    bossRef: kind === "boss" ? tpl : null, introLock: false };
+  if(kind === "elite"){ C.affix = pick(AFFIXES); C.name = `精英 · ${C.affix.name} · ` + tpl.name;
+    if(C.affix.id === "swift") C.dmgAdd += 3; }
+  if(hasRelic("mirror")) C.vuln = 1;
+  applyBonds();
+  computeMove();
+  R.combats++;
+  $("enemyimg").src = C.img;
+  $("enemy").classList.remove("dying");
+  $("enemy").classList.toggle("bossmode", kind === "boss");
+  $("enemyname").innerHTML = `${C.name}<small>${C.en}</small>`;
+  $("tb-where").textContent = R.endless ? `无尽 · 第 ${R.efloor} 层` : kind === "boss" ? "Boss 战" : kind === "elite" ? "精英战" : "战斗";
+  showScreen("combat");
+  drawCards(5 + (hasRelic("boots") ? 1 : 0) + equipStats().startdraw + (C.bondDraw || 0), true);
+  $("hand").classList.add("drawing"); setTimeout(() => $("hand").classList.remove("drawing"), 750);
+  syncCombat();
+  if(kind !== "battle") playEntrance();
+}
+function playEntrance(){
+  C.introLock = true;
+  const isBoss = C.kind === "boss";
+  const b = $("introbanner"), veil = $("boss-veil"), ct = $("cine-top"), cb = $("cine-bot");
+  const B = C.bossRef || (isBoss ? BOSSES[R.act] : null);
+  const warnTxt = isBoss && B ? `⚠ 必杀技「${B.ultName}」 · 深渊领主压迫` : (C.affix ? `词缀「${C.affix.name}」：${C.affix.desc}` : "");
+  b.className = isBoss ? "" : "elite-style";
+  b.innerHTML = `<div class="ib-kicker">${isBoss ? "👑 DEEP ABYSS SOVEREIGN · 深渊领主降临" : "🔥 ELITE ENCOUNTER · 精英现身"}</div>
+    <div class="ib-name">${C.name}</div><div class="ib-line"></div>
+    <div class="ib-sub">${C.en || ""}</div>${warnTxt ? `<div class="ib-warn">${warnTxt}</div>` : ""}`;
+  const dur = isBoss ? 2050 : 1280;
+  let doneIntro = false;
+  const endIntro = () => {
+    if(doneIntro) return; doneIntro = true;
+    if(C) C.introLock = false;
+    b.classList.remove("on"); b.style.opacity = 0;
+    veil.classList.remove("on"); ct.classList.remove("on"); cb.classList.remove("on");
+    stage.removeEventListener("click", endIntro);
+  };
+  setTimeout(() => stage.addEventListener("click", endIntro), 280);
+  if(isBoss){ ct.classList.add("on"); cb.classList.add("on"); veil.classList.add("on"); SFX.bossEntrance(); }
+  else { SFX.bossCharge(); }
+  const ep = stagePos($("enemyframe").getBoundingClientRect());
+  $("enemyframe").animate([
+    { transform: isBoss ? "scale(1.32) translateY(-24px)" : "scale(.76)", filter: isBoss ? "brightness(.15) contrast(1.4)" : "brightness(2.4)" },
+    { transform: isBoss ? "scale(1.1) translateY(0)" : "scale(1.12)", filter: isBoss ? "brightness(1.45) drop-shadow(0 0 42px rgba(255,60,30,.9))" : "brightness(1.25)", offset: 0.45 },
+    { transform: "scale(1)", filter: "brightness(1)" }
+  ], { duration: isBoss ? 1250 : 900, easing: "cubic-bezier(.2,.85,.25,1)" });
+  b.classList.add("on");
+  b.animate([
+    { opacity: 0, transform: "scale(.86) translateY(18px)" },
+    { opacity: 1, transform: "scale(1.03) translateY(0)", offset: 0.18 },
+    { opacity: 1, transform: "scale(1) translateY(0)", offset: 0.78 },
+    { opacity: 0, transform: "scale(1.04) translateY(-10px)" }
+  ], { duration: dur, easing: "cubic-bezier(.2,.8,.25,1)", fill: "forwards" });
+  FX.shockwave(ep.x, ep.y, isBoss ? "#ff5a36" : "#b78cff", isBoss ? 310 : 210, isBoss ? 10 : 7, 0.58);
+  if(isBoss){
+    setTimeout(() => FX.shockwave(ep.x, ep.y, "#ffd27d", 380, 6, 0.65), 140);
+    FX.embers("#ff6a33", 44); FX.speedlines("rgba(255,95,55,.6)", 0.55, 36, 0.48);
+    impactFlash("rgba(255,80,45,.52)", 0.65, 360);
+    cameraShake(17, 480); cameraZoomPunch(1.04, 420);
+  } else {
+    FX.sparks(ep.x, ep.y, "#c9a6ff", 22, 380);
+    cameraShake(9, 300);
+  }
+  setTimeout(endIntro, dur);
+}
+function computeMove(){
+  if(C.mech){
+    const B = C.bossRef || BOSSES[R.act];
+    if(C.charging){ C.move = { t: "ultimate", v: B.ultDmg, name: B.ultName, burn: B.ultBurn || 0 }; return; }
+    if(C.mechTurns % 4 === 3){ C.move = { t: "charge", name: B.ultName }; return; }
+  }
+  C.move = C.moves[C.moveIdx % C.moves.length];
+}
+function intentHTML(){
+  const m = C.move;
+  if(m.t === "charge") return { cls: "debuff charging", html: `⚠ 蓄力中 —— 下回合释放「${m.name}」！` };
+  if(m.t === "ultimate"){ let d = m.v + C.dmgAdd + C.str; if(C.pvuln > 0) d = Math.floor(d * 1.5);
+    return { cls: "debuff charging", html: `💥 大招「${m.name}」：<b>${d}</b> 伤害！` }; }
+  if(m.t === "atk"){ let d = m.v + C.dmgAdd + C.str; if(R && C.pvuln > 0) d = Math.floor(d * 1.5);
+    return { cls: "", html: `⚔ 意图：攻击 <b>${d}</b>` }; }
+  if(m.t === "atkx"){ let d = m.v + C.dmgAdd + C.str; if(C.pvuln > 0) d = Math.floor(d * 1.5);
+    return { cls: "", html: `⚔ 意图：连击 <b>${d} × ${m.n}</b>` }; }
+  if(m.t === "def") return { cls: "defend", html: `🛡 意图：防御 <b>${m.v}</b>` };
+  if(m.t === "buff") return { cls: "buff", html: `💪 意图：强化 <b>+${m.v}</b>` };
+  if(m.t === "vuln") return { cls: "debuff", html: `💔 意图：施加易伤` };
+  if(m.t === "burnp") return { cls: "debuff", html: `🔥 意图：施加灼烧` };
+  return { cls: "", html: "❓ 意图不明" };
+}
+function syncCombat(){
+  if(!C) return;
+  $("ehpfill").style.width = Math.max(0, C.hp / C.maxhp * 100) + "%";
+  $("ehptext").textContent = `${Math.max(0, C.hp)} / ${C.maxhp}`;
+  $("eblock").style.display = C.block > 0 ? "block" : "none";
+  $("eblocknum").textContent = C.block;
+  const st = [];
+  if(C.vuln > 0) st.push(`<span class="estatus" style="color:#ffb4a2">💔 易伤 ${C.vuln}</span>`);
+  if(C.weak > 0) st.push(`<span class="estatus" style="color:#c9b8ff">🥀 虚弱 ${C.weak}</span>`);
+  if(C.burn > 0) st.push(`<span class="estatus" style="color:#ffc48a">🔥 灼烧 ${C.burn}</span>`);
+  if(C.str > 0) st.push(`<span class="estatus" style="color:#f5ddab">💪 力量 ${C.str}</span>`);
+  $("estatuses").innerHTML = st.join("");
+  const it = intentHTML();
+  $("intent").className = it.cls; $("intent").id = "intent"; $("intent").innerHTML = it.html;
+  $("phpfill").style.width = Math.max(0, R.hp / R.maxhp * 100) + "%";
+  $("phptext").textContent = `${Math.max(0, R.hp)} / ${R.maxhp}`;
+  $("blocknum").textContent = C.pblock;
+  $("strstat").style.display = C.pstr > 0 ? "" : "none"; $("strnum").textContent = C.pstr;
+  $("thornstat").style.display = C.thorns > 0 ? "" : "none"; $("thornnum").textContent = C.thorns;
+  $("jifengstat").style.display = C.jifeng > 0 ? "" : "none"; $("jifengnum").textContent = C.jifeng;
+  $("wolfstat").style.display = C.wolf > 0 ? "" : "none"; $("wolfnum").textContent = C.wolf;
+  $("combochip").style.display = C.combo >= 1 ? "" : "none"; $("combonum").textContent = C.combo;
+  $("vulnstat").style.display = C.pvuln > 0 ? "" : "none"; $("vulnnum").textContent = C.pvuln;
+  $("weakstat").style.display = C.pweak > 0 ? "" : "none"; $("weaknum").textContent = C.pweak;
+  $("energynum").textContent = C.energy;
+  $("energy").classList.toggle("low", C.energy === 0);
+  $("drawnum").textContent = C.deck.length;
+  $("discardnum").textContent = C.discard.length;
+  $("endturn").disabled = C.busy || C.over;
+  document.querySelectorAll("#hand .card").forEach(el => {
+    const w = C.hand[+el.dataset.hidx];
+    if(w) el.classList.toggle("unplayable", CARDS[w.inst.id].cost > C.energy || C.busy);
+  });
+  syncTopbar();
+}
+function renderHand(){
+  const hand = $("hand"); hand.innerHTML = "";
+  preloadLegendaryVideos(C.hand.map(w => w.inst));
+  C.hand.forEach((w, i) => {
+    const el = cardEl(w.inst);
+    el.dataset.hidx = i;
+    const n = C.hand.length, mid = (n - 1) / 2;
+    el.style.transform = `rotate(${(i - mid) * 3.6}deg) translateY(${Math.abs(i - mid) * 6}px)`;
+    el.style.zIndex = 10 + i;
+    el.addEventListener("mouseenter", () => { if(!el.classList.contains("unplayable")) SFX.cardHover(); });
+    el.addEventListener("click", () => playCard(i, el));
+    hand.appendChild(el);
+  });
+  syncCombat();
+}
+function drawCards(n, silent){
+  for(let i = 0; i < n; i++){
+    if(!C.deck.length){ C.deck = shuffle(C.discard); C.discard = []; }
+    if(!C.deck.length || C.hand.length >= 9) break;
+    C.hand.push(C.deck.shift());
+  }
+  renderHand();
+}
+function floatNum(x, y, txt, color, opts = {}){
+  const s = document.createElement("div");
+  s.className = "floatnum" + (opts.tier ? " " + opts.tier : "");
+  const ox = opts.spread ? rnd(-opts.spread, opts.spread) : 0;
+  const oy = opts.spread ? rnd(-16, 16) : 0;
+  s.style.left = (x + ox) + "px"; s.style.top = (y + oy) + "px"; s.style.color = color;
+  s.innerHTML = (opts.tag ? `<span class="ftag">${opts.tag}</span>` : "") + txt;
+  stageCam.appendChild(s);
+  const driftX = opts.spread ? rnd(-34, 34) : rnd(-10, 10);
+  const peak = opts.tier === "crit" ? 1.52 : opts.tier === "heavy" ? 1.38 : 1.18;
+  const dur = opts.tier === "crit" ? 1150 : opts.tier === "heavy" ? 1050 : 920;
+  s.animate([
+    { transform: "translate(-50%, 8px) scale(.45)", opacity: 0 },
+    { transform: `translate(calc(-50% + ${driftX * 0.35}px), -18px) scale(${peak})`, opacity: 1, offset: 0.16 },
+    { transform: `translate(calc(-50% + ${driftX * 0.65}px), -34px) scale(1.02)`, opacity: 1, offset: 0.42 },
+    { transform: `translate(calc(-50% + ${driftX}px), -82px) scale(.92)`, opacity: 0 }
+  ], { duration: dur, easing: "cubic-bezier(.16,.84,.3,1)", fill: "forwards" }).onfinish = () => s.remove();
+}
+function dealDamageToEnemy(amount, isAttack, raw, fxOpts = {}){
+  let d = amount;
+  if(isAttack){ d += C.pstr + (hasRelic("whet") ? 1 : 0) + equipStats().atk; if(C.pweak > 0) d = Math.floor(d * 0.75); }
+  const isVulnAmp = !raw && C.vuln > 0;
+  if(isVulnAmp) d = Math.floor(d * 1.5);
+  d = Math.max(0, d);
+  const totalShown = d;
+  const absorbed = Math.min(C.block, d); C.block -= absorbed; d -= absorbed;
+  C.hp -= d;
+  const isCrit = !!(fxOpts.crit || (totalShown >= 18) || (isVulnAmp && totalShown >= 13));
+  const isHeavy = isCrit || totalShown >= 12 || !!fxOpts.heavy;
+  const ep = stagePos($("enemyframe").getBoundingClientRect());
+  hitStop(isCrit ? 95 : isHeavy ? 68 : 44, $("enemy"), isHeavy);
+  $("enemy").classList.remove("shake"); void $("enemy").offsetWidth; $("enemy").classList.add("shake");
+  const sl = $("slash"); sl.classList.remove("on"); void sl.offsetWidth; sl.classList.add("on");
+  const el = fxOpts.el || "铁";
+  const elColor = { "火":"#ff8a3d", "冰":"#7ee8ff", "雷":"#66e3ff", "影":"#c084fc", "血":"#fb7185", "光":"#ffe082", "风":"#5eead4", "铁":"#9ef5e8" }[el] || "#7ef7e4";
+  if(el === "雷") FX.bolt(ep.x, ep.y, elColor);
+  else FX.slash(ep.x, ep.y, elColor, { len: isCrit ? 360 : isHeavy ? 310 : 250, thick: isCrit ? 30 : isHeavy ? 24 : 18, cross: isCrit, ang: fxOpts.ang });
+  FX.sparks(ep.x, ep.y, isCrit ? "#ffe082" : elColor, isCrit ? 34 : isHeavy ? 24 : 14, isCrit ? 560 : 420);
+  if(isHeavy) FX.shockwave(ep.x, ep.y, elColor, isCrit ? 250 : 185, isCrit ? 8 : 5, 0.36);
+  if(isCrit){ FX.speedlines("rgba(255,225,150,.7)", 0.32, 26, 0.42); impactFlash("rgba(255,236,185,.42)", 0.55, 220); cameraZoomPunch(1.035, 220); }
+  cameraShake(isCrit ? 15 : isHeavy ? 9 : 4.5, isCrit ? 340 : isHeavy ? 240 : 160);
+  if(isCrit) SFX.hitCrit(); else if(isHeavy) SFX.hitHeavy(fxOpts.pitch || 1); else SFX.hitLight(fxOpts.pitch || 1);
+  if(el !== "铁" && el !== "风") SFX.hitElement(el);
+  const tag = fxOpts.tag || (isCrit && isVulnAmp ? "破甲重击" : isCrit ? "重击!" : absorbed > 0 && d === 0 ? "格挡" : "");
+  floatNum(ep.x, ep.y - 52, "-" + totalShown, isCrit ? "#ffe699" : "#ffb08a", {
+    tier: isCrit ? "crit" : isHeavy ? "heavy" : "", tag, spread: 42
+  });
+  bossThresholdCheck();
+  if(isAttack && C.affix && C.affix.id === "thorns" && C.hp > 0 && R.hp > 0){
+    damagePlayerRaw(3); floatNum(168, 415, "🌵 荆棘 -3", "#b8ffc9", { tier: "status", spread: 20 }); SFX.playerHit(); }
+  return d;
+}
+function bossThresholdCheck(){
+  if(!C || C.hp <= 0 || !C.mech) return;
+  const frac = C.hp / C.maxhp;
+  if(C.mech === "dragon"){
+    for(const th of [0.66, 0.33]) if(frac <= th && !C.thresholdsUsed.includes(th)){
+      C.thresholdsUsed.push(th); C.block += 30; SFX.block();
+      toast("🐉 巨龙展开龙鳞护盾（格挡 +30）！"); burstOn($("enemyframe"), "block"); }
+  }
+  if(C.mech === "core" && frac <= 0.5 && !C.thresholdsUsed.includes(0.5)){
+    C.thresholdsUsed.push(0.5); C.str += 3; SFX.bossCharge();
+    toast("🔥 魔像核心过热：力量 +3，狂怒了！"); burstOn($("enemyframe"), "fire"); }
+  if(C.mech === "magma"){
+    for(const th of [0.66, 0.33]) if(frac <= th && !C.thresholdsUsed.includes(th)){
+      C.thresholdsUsed.push(th); C.block += 12; C.str += 1; SFX.bossCharge();
+      toast("🌋 兽王熔甲增生：格挡 +12，力量 +1！"); burstOn($("enemyframe"), "fire"); }
+  }
+  if(C.mech === "void" && frac <= 0.5 && !C.thresholdsUsed.includes(0.5)){
+    C.thresholdsUsed.push(0.5); C.block += 40; SFX.block();
+    toast("🌀 虚空君主展开虚空护盾（格挡 +40）！"); burstOn($("enemyframe"), "frost"); }
+  if(C.mech === "chaos"){
+    for(const th of [0.66, 0.33]) if(frac <= th && !C.thresholdsUsed.includes(th)){
+      C.thresholdsUsed.push(th); C.block += 20; C.str += 2; SFX.bossCharge();
+      toast("☄️ 混沌主宰形态崩坏重组：格挡 +20，力量 +2！"); burstOn($("enemyframe"), "fire"); }
+  }
+  if(C.affix && C.affix.id === "rage" && frac <= 0.5 && !C.rageUsed){
+    C.rageUsed = true; C.str += 4; SFX.bossCharge();
+    toast("💢 狂暴词缀触发：敌人力量 +4！"); }
+}
+function enemyHitPlayer(base, opts = {}){
+  let d = base + C.dmgAdd + C.str;
+  if(C.weak > 0) d = Math.floor(d * 0.75);
+  if(C.pvuln > 0) d = Math.floor(d * 1.5);
+  d = Math.max(0, d);
+  const absorbed = Math.min(C.pblock, d); C.pblock -= absorbed; d -= absorbed;
+  const pp = stagePos($("player").getBoundingClientRect());
+  if(d > 0){
+    damagePlayerRaw(d);
+    hitStop(opts.ult ? 95 : 55, $("player"), !!opts.ult);
+    $("player").classList.remove("hit"); void $("player").offsetWidth; $("player").classList.add("hit");
+    burstOn($("player"), "slash");
+    FX.slash(pp.x, pp.y, "#ff6a55", { len: opts.ult ? 300 : 210, thick: opts.ult ? 26 : 18, cross: !!opts.ult });
+    FX.sparks(pp.x, pp.y, "#ff7b66", opts.ult ? 30 : 16, 420);
+    hurtVignette();
+    cameraShake(opts.ult ? 20 : d >= 14 ? 12 : 7, opts.ult ? 420 : 260);
+    SFX.playerHit();
+  } else {
+    FX.shockwave(pp.x, pp.y, "#8fd3ff", 135, 6, 0.32);
+    FX.sparks(pp.x, pp.y, "#bfe6ff", 12, 260);
+    SFX.blockAbsorb();
+  }
+  floatNum(pp.x, pp.y - 36, d > 0 ? "-" + d : "🛡 格挡抵挡", d > 0 ? "#ff8f7a" : "#9fd8ff", {
+    tier: d >= 18 ? "heavy" : d === 0 ? "status" : "", spread: 24
+  });
+}
+function stagePos(rect){ const sr = stage.getBoundingClientRect();
+  const scx = sr.left + sr.width / 2, scy = sr.top + sr.height / 2;
+  let dx = (rect.left + rect.width / 2 - scx) / (window.__scale || 1);
+  let dy = (rect.top + rect.height / 2 - scy) / (window.__scale || 1);
+  if(window.__rot === 90){ const t = dx; dx = dy; dy = -t; }
+  return { x: 640 + dx, y: 360 + dy }; }
+function burstAt(x, y, type){ const b = document.createElement("div"); b.className = "burst " + type;
+  b.style.left = x + "px"; b.style.top = y + "px"; $("fxlayer").appendChild(b);
+  requestAnimationFrame(() => b.classList.add("go")); setTimeout(() => b.remove(), 520); }
+function burstOn(el, type){ const p = stagePos(el.getBoundingClientRect()); burstAt(p.x, p.y, type); }
+function screenShake(){ cameraShake(8.5, 280); }
+function screenShakeBig(){ cameraShake(19, 440); }
+function impactFlash(color, alpha = 0.85, duration = 300){
+  const f = $("impactflash");
+  f.style.background = color ? `radial-gradient(ellipse at center, ${color} 0%, transparent 74%)`
+    : "radial-gradient(ellipse at center, rgba(255,248,225,.95) 0%, rgba(255,196,90,.48) 44%, transparent 76%)";
+  f.animate([ { opacity: alpha }, { opacity: 0 } ], { duration, easing: "ease-out" }); }
+function impactFx(inst){ const d = CARDS[inst.id], n = cardNums(inst);
+  if(n.dmg){ const t = d.el === "火" ? "fire" : d.el === "雷" ? "bolt" : d.el === "冰" ? "frost" : "slash";
+    burstOn($("enemyframe"), t); }
+  else if(n.block){ burstOn($("player"), "block"); SFX.block(); }
+  else if(n.heal){ burstOn($("player"), "heal"); SFX.heal(); }
+  else if(n.detonateVuln || n.detonateBurn){ burstOn($("enemyframe"), "fire"); }
+  else if(n.summon || n.str || n.jifeng || n.dual || n.thorns){ burstOn($("player"), "frost"); SFX.buff(); } }
+function flyCard(node, inst, targetEl, done){
+  SFX.cardPlay();
+  const c = cardEl(inst); c.classList.add("flycard");
+  const from = stagePos(node.getBoundingClientRect());
+  const to = stagePos(targetEl.getBoundingClientRect());
+  c.style.left = (from.x - 64) + "px"; c.style.top = (from.y - 91) + "px";
+  stageCam.appendChild(c);
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const anim = c.animate([
+    { transform: "translate(0,0) rotate(0deg) scale(1)", opacity: 1 },
+    { transform: `translate(${dx * .55}px, ${dy * .55 - 70}px) rotate(7deg) scale(1.06)`, opacity: 1, offset: .55 },
+    { transform: `translate(${dx}px, ${dy}px) rotate(-5deg) scale(1.16)`, opacity: .96 }
+  ], { duration: 290, easing: "cubic-bezier(.3,.7,.4,1)" });
+  anim.onfinish = () => { c.remove(); done(); };
+}
+function spawnShards(p, count = 20){
+  for(let i = 0; i < count; i++){ const s = document.createElement("div"); s.className = "shard";
+    s.style.left = (p.x - 7) + "px"; s.style.top = (p.y - 11) + "px"; stageCam.appendChild(s);
+    const ang = (i / count) * Math.PI * 2 + rnd(-0.22, 0.22), dist = 190 + Math.random() * 340;
+    const endScale = rnd(1.4, 2.9);
+    s.animate([
+      { transform: "translate(0,0) rotate(0deg) scale(.6)", opacity: 1 },
+      { transform: `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist + 40}px) rotate(${irnd(-340, 340)}deg) scale(${endScale})`, opacity: 0 }
+    ], { duration: 640 + Math.random() * 320, easing: "cubic-bezier(.15,.85,.25,1)" }).onfinish = () => s.remove(); }
+}
+function spawnShardsToward(count = 12){
+  for(let i = 0; i < count; i++){ const s = document.createElement("div"); s.className = "shard";
+    s.style.left = (280 + Math.random() * 720) + "px"; s.style.top = (110 + Math.random() * 500) + "px"; stageCam.appendChild(s);
+    s.animate([
+      { transform: `scale(.3) rotate(${irnd(-90, 90)}deg)`, opacity: 1 },
+      { transform: `scale(${rnd(2.6, 4.2)}) rotate(${irnd(-260, 260)}deg)`, opacity: 0 }
+    ], { duration: 540 + Math.random() * 240, easing: "cubic-bezier(.2,.7,.3,1)" }).onfinish = () => s.remove(); }
+}
+function showLegendaryMoment(inst, done){
+  const lm = $("legmoment"), wrap = $("legcard"), crack = $("legcrack");
+  const ch = $("legchar"), stage2 = $("legstage"), lv = $("legvideo");
+  const titleBox = $("legtitle");
+  const d = CARDS[inst.id];
+  const th = HERO_THEME[inst.id] || { accent:"#ffe299", glow:"rgba(255,200,90,.85)", startRatio:0.48, objPos:"center 22%", elFx:"bolt" };
+  lm.style.setProperty("--leg-accent", th.accent);
+  lm.style.setProperty("--leg-glow", th.glow);
+  $("legname").textContent = d.name;
+  $("legbond").textContent = d.bond ? `💞 羁绊 · ${d.bond}` : "";
+  /* rebuild card inside wrap while keeping #legcrack */
+  wrap.innerHTML = "";
+  wrap.appendChild(cardEl(inst, { big: true }));
+  wrap.appendChild(crack);
+  wrap.style.visibility = ""; wrap.style.opacity = "1"; wrap.style.transform = "scale(1.55)";
+  crack.style.opacity = "0";
+  ch.style.opacity = 0;
+  titleBox.style.opacity = 0;
+  stage2.classList.remove("on");
+  stage2.style.opacity = "1"; stage2.style.clipPath = "none";
+  lv.style.objectPosition = th.objPos;
+  lv.style.transform = "scale(1)"; lv.style.filter = "brightness(1)";
+  lm.classList.add("on");
+  SFX.legendaryCharge();
+  const timers = [];
+  let finished = false;
+  const onKey = e => { if(e.code === "Space" || e.code === "Escape") skip(); };
+  const finishAll = () => {
+    if(finished) return; finished = true;
+    timers.forEach(t => clearTimeout(t));
+    lm.classList.remove("on"); stage2.classList.remove("on");
+    try{ lv.pause(); }catch(e){}
+    lm.removeEventListener("click", skip);
+    removeEventListener("keydown", onKey);
+    done();
+  };
+  const skip = () => { impactFx(inst); finishAll(); };
+  lm.addEventListener("click", skip);
+  addEventListener("keydown", onKey);
+  if(d.video){
+    /* Phase 0: pre-seek to second-half breakout moment BEFORE showing video so frame 0 never flashes */
+    let videoReady = false, phase2Fired = false;
+    const revealFullscreenBreakout = () => {
+      if(finished || phase2Fired) return; phase2Fired = true;
+      const p = stagePos(wrap.getBoundingClientRect());
+      SFX.legendaryBreakout();
+      burstAt(p.x, p.y, th.elFx);
+      spawnShards(p, 22); spawnShardsToward(12);
+      FX.shockwave(640, 360, th.accent, 520, 12, 0.48);
+      FX.shockwave(640, 360, "#ffffff", 340, 6, 0.32);
+      FX.speedlines(th.accent, 0.65, 48, 0.58);
+      FX.embers(th.accent, 38);
+      impactFlash(th.glow, 0.72, 220);
+      cameraShake(14, 340);
+      /* Shatter & vanish card frame completely */
+      wrap.animate([
+        { transform: "scale(1.58)", opacity: 1, filter: "brightness(2.2)" },
+        { transform: "scale(2.45)", opacity: 0, filter: "brightness(3)" }
+      ], { duration: 240, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" });
+      timers.push(setTimeout(() => { wrap.style.visibility = "hidden"; }, 245));
+      /* Full-bleed borderless 3D breakout expanding seamlessly from shattered card */
+      stage2.classList.add("on");
+      stage2.animate([
+        { clipPath: "circle(14% at 50% 50%)", opacity: 0.92 },
+        { clipPath: "circle(112% at 50% 50%)", opacity: 1 }
+      ], { duration: 340, easing: "cubic-bezier(.16,.88,.24,1)", fill: "forwards" });
+      lv.play().catch(() => {});
+      /* Continuous 3D camera push-in toward viewer during second-half charge */
+      lv.animate([
+        { transform: "scale(1.06)", filter: "brightness(1.55) contrast(1.12)" },
+        { transform: "scale(1.0)",  filter: "brightness(1.05) contrast(1.05)", offset: 0.22 },
+        { transform: "scale(1.14)", filter: "brightness(1.12) contrast(1.08)" }
+      ], { duration: 2050, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
+      /* Sleek cinematic hero nameplate (bottom-left, unobstructed face) */
+      timers.push(setTimeout(() => {
+        if(finished) return;
+        titleBox.animate([
+          { opacity: 0, transform: "translateX(-38px)" },
+          { opacity: 1, transform: "translateX(0)", offset: 0.16 },
+          { opacity: 1, transform: "translateX(0)", offset: 0.84 },
+          { opacity: 0, transform: "translateX(16px)" }
+        ], { duration: 1850, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
+      }, 120));
+      /* Phase 3: Climax strike + 110ms hit-stop + seamless dissolve into battlefield */
+      timers.push(setTimeout(() => {
+        if(finished) return;
+        try{ lv.pause(); }catch(e){}
+        SFX.legendaryImpact();
+        FX.slash(640, 360, th.accent, { len: 760, thick: 42, cross: true, dur: 0.36 });
+        FX.sparks(640, 360, th.accent, 42, 680);
+        FX.speedlines("#ffffff", 0.36, 40, 0.55);
+        impactFlash(th.glow, 0.9, 340);
+        cameraShake(22, 460);
+        impactFx(inst);
+        timers.push(setTimeout(() => {
+          if(finished) return;
+          stage2.animate([
+            { transform: "scale(1)", opacity: 1 },
+            { transform: "scale(1.18)", opacity: 0 }
+          ], { duration: 360, easing: "cubic-bezier(.3,.7,.4,1)", fill: "forwards" });
+        }, 110));
+      }, 2020));
+      timers.push(setTimeout(finishAll, 2500));
+    };
+    /* Phase 1: Card zoom & energy crack buildup (0 -> 440ms) */
+    wrap.animate([
+      { transform: "scale(.85) translateY(60px)", opacity: 0 },
+      { transform: "scale(1.55) translateY(0) rotate(-1.5deg)", opacity: 1, offset: 0.45 },
+      { transform: "scale(1.62) translate(-4px,2px) rotate(1.5deg)", opacity: 1, offset: 0.72 },
+      { transform: "scale(1.58) translate(4px,-2px) rotate(-1deg)", opacity: 1 }
+    ], { duration: 430, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
+    crack.animate([{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "scale(1.15)" }], { duration: 420, fill: "forwards" });
+    FX.sparks(640, 360, th.accent, 18, 240, { g: -80 });
+    lv.src = d.video;
+    const seekToBreakout = () => {
+      if(lv.duration && isFinite(lv.duration)){
+        const targetT = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio);
+        const onSeeked = () => { videoReady = true; };
+        lv.addEventListener("seeked", onSeeked, { once: true });
+        try{ lv.currentTime = targetT; }catch(e){ videoReady = true; }
+      } else { videoReady = true; }
+    };
+    if(lv.readyState >= 1) seekToBreakout(); else lv.addEventListener("loadedmetadata", seekToBreakout, { once: true });
+    timers.push(setTimeout(() => {
+      if(finished) return;
+      if(videoReady) revealFullscreenBreakout();
+      else {
+        lv.addEventListener("seeked", revealFullscreenBreakout, { once: true });
+        timers.push(setTimeout(revealFullscreenBreakout, 260));
+      }
+    }, 430));
+  } else if(d.poster){
+    ch.src = d.poster;
+    timers.push(setTimeout(() => { if(finished) return;
+      wrap.style.visibility = "hidden";
+      const p = stagePos(wrap.getBoundingClientRect());
+      SFX.legendaryBreakout(); burstAt(p.x, p.y, "bolt"); spawnShards(p, 18);
+      ch.style.opacity = 1;
+      ch.animate([ { transform: "translate(-50%,-50%) scale(.42) rotate(-5deg)", filter: "brightness(2.4) drop-shadow(0 26px 60px rgba(0,0,0,.75))" },
+        { transform: "translate(-50%,-50%) scale(1.08) rotate(1.2deg)", filter: "brightness(1.05) drop-shadow(0 26px 60px rgba(0,0,0,.75))" } ],
+        { duration: 520, easing: "cubic-bezier(.2,.9,.3,1.35)", fill: "forwards" });
+      cameraShake(12, 320);
+    }, 520));
+    timers.push(setTimeout(() => { if(finished) return;
+      const er = stagePos($("enemyframe").getBoundingClientRect());
+      ch.animate([ { transform: "translate(-50%,-50%) scale(1.08) rotate(1.2deg)", opacity: 1 },
+        { transform: `translate(calc(-50% + ${er.x - 640}px), calc(-50% + ${er.y - 360}px)) scale(1.22) rotate(-2deg)`, opacity: 1, offset: .7 },
+        { transform: `translate(calc(-50% + ${er.x - 640}px), calc(-50% + ${er.y - 360}px)) scale(1.22) rotate(-2deg)`, opacity: 0 } ],
+        { duration: 480, easing: "cubic-bezier(.4,.6,.4,1)", fill: "forwards" });
+      SFX.legendaryImpact(); impactFx(inst);
+    }, 1650));
+    timers.push(setTimeout(() => { ch.style.opacity = 0; finishAll(); }, 2180));
+  } else {
+    timers.push(setTimeout(() => { if(finished) return; SFX.legendaryImpact(); burstOn($("enemyframe"), "bolt"); impactFx(inst); }, 750));
+    timers.push(setTimeout(finishAll, 1150));
+  }
+}
+function playCard(hidx, node){
+  if(!C || C.busy || C.over || C.introLock) return;
+  const w = C.hand[hidx]; if(!w) return;
+  const d = CARDS[w.inst.id], n = cardNums(w.inst);
+  if(d.cost > C.energy) return;
+  C.busy = true; C.energy -= d.cost; syncCombat();
+  node.style.visibility = "hidden";
+  const finish = () => {
+    C.hand.splice(C.hand.indexOf(w), 1); C.discard.push(w);
+    const eq = equipStats();
+    C.playCounts[w.inst.id] = (C.playCounts[w.inst.id] || 0) + 1;
+    let dealt = 0;
+    if(n.block){ const b = n.block + eq.blk; C.pblock += b; SFX.block(); floatNum(162, 396, "🛡 格挡 +" + b, "#9fd8ff", { tier: "status", spread: 16 }); }
+    const finishRest = () => {
+      if(d.lifesteal && dealt > 0){ healPlayer(Math.floor(dealt / 2)); SFX.heal(); floatNum(162, 366, "💚 +" + Math.floor(dealt / 2), "#8be04e", { tier: "status" }); }
+      if(d.drawkill && C.hp <= 0) drawCards(1);
+      if(n.detonateVuln && C.vuln > 0 && C.hp > 0){ dealt += dealDamageToEnemy(C.vuln * n.detonateVuln, false, true, { el:"火", crit:true, tag:"引爆!" }); C.vuln = 0; }
+      if(n.detonateBurn && C.burn > 0 && C.hp > 0){ dealt += dealDamageToEnemy(C.burn * n.detonateBurn, false, true, { el:"火", crit:true, tag:"燃爆!" }); C.burn = 0; }
+      if(n.vuln) C.vuln += n.vuln;
+      if(n.weak) C.weak += n.weak;
+      if(n.burn) C.burn += n.burn;
+      if(n.thorns) C.thorns += n.thorns;
+      if(n.jifeng) C.jifeng += n.jifeng;
+      if(n.dual) C.dual += n.dual;
+      if(n.summon) C.wolf = Math.max(C.wolf, n.summon);
+      if(n.str){ C.pstr += n.str; }
+      if(n.cleanse){ C.pvuln = 0; C.pweak = 0; C.pburn = 0; }
+      if(n.selfvuln) C.pvuln += n.selfvuln;
+      if(n.heal){ healPlayer(n.heal); SFX.heal(); floatNum(162, 372, "💚 +" + n.heal, "#8be04e", { tier: "status" }); }
+      if(n.energy) C.energy = Math.min(9, C.energy + n.energy);
+      if(n.selfdmg){ damagePlayerRaw(n.selfdmg); SFX.playerHit(); floatNum(162, 405, "-" + n.selfdmg, "#ff9a8a", { tier: "status" }); }
+      if(n.draw) drawCards(n.draw);
+      C.combo++;
+      renderHand(); C.busy = false; syncCombat();
+      if(C.hp <= 0) winCombat();
+      else if(R.hp <= 0) loseCombat();
+    };
+    if(n.dmg || n.blockDmg){
+      let per = n.dmg || 0, hits = n.hits || 1;
+      if(n.growDmg) per += (C.playCounts[w.inst.id] - 1) * n.growDmg;
+      if(n.comboDmg && C.combo >= (C.comboEase ? 1 : 2)) per += n.comboDmg;
+      const isExec = !!(d.execute && C.hp / C.maxhp <= 0.3);
+      if(isExec) per *= 2;
+      if(n.blockDmg) per = C.pblock;
+      let jf = 0;
+      if(C.jifeng > 0){ jf = C.jifeng * 2; C.jifeng = 0; }
+      if(C.dual > 0){ hits += 1; C.dual--; }
+      let firstBonus = 0;
+      if(!C.firstAtkUsed && eq.firstatk){ firstBonus = eq.firstatk; C.firstAtkUsed = true; }
+      const doHit = (h) => {
+        if(!C || C.hp <= 0 || R.hp <= 0){ finishRest(); return; }
+        const isLast = h === hits - 1;
+        dealt += dealDamageToEnemy(per + (h === 0 ? jf + firstBonus : 0), true, false, {
+          el: d.el, pitch: 1 + h * 0.14, ang: -0.75 + (h % 2) * 1.1,
+          crit: isExec || (d.rarity === "legendary" && isLast), heavy: d.rarity === "legendary" || isExec,
+          tag: isExec ? "处刑!" : (hits > 1 && isLast ? `${hits}连击!` : "")
+        });
+        if(eq.burnhit && C.hp > 0) C.burn += eq.burnhit;
+        syncCombat();
+        if(C.hp <= 0 || R.hp <= 0 || isLast){ finishRest(); }
+        else { setTimeout(() => doHit(h + 1), 135); }
+      };
+      doHit(0);
+    } else {
+      finishRest();
+    }
+  };
+  if(d.rarity === "legendary") showLegendaryMoment(w.inst, finish);
+  else flyCard(node, w.inst, (n.dmg || n.blockDmg || n.detonateVuln || n.detonateBurn || n.vuln || n.weak || n.burn) ? $("enemyframe") : $("player"), () => { impactFx(w.inst); finish(); });
+}
+$("endturn").addEventListener("click", endTurn);
+function bossUltFx(name, applyFn){
+  const b = $("ultbanner"), f = $("ultflash"), veil = $("boss-veil");
+  b.textContent = "💥 " + name;
+  b.classList.remove("on"); void b.offsetWidth; b.classList.add("on");
+  f.classList.remove("on"); void f.offsetWidth; f.classList.add("on");
+  veil.classList.add("on");
+  $("enemy").classList.add("ulting");
+  SFX.bossCharge();
+  const ep = stagePos($("enemyframe").getBoundingClientRect());
+  FX.embers("#ff5522", 42);
+  FX.shockwave(ep.x, ep.y, "#ff4d24", 320, 10, 0.55);
+  FX.speedlines("rgba(255,80,40,.68)", 0.65, 44, 0.55);
+  cameraShake(10, 420);
+  setTimeout(() => {
+    $("enemy").classList.remove("ulting");
+    veil.classList.remove("on");
+    SFX.bossUlt();
+    impactFlash("rgba(255,70,35,.82)", 0.88, 380);
+    cameraShake(24, 520);
+    cameraZoomPunch(1.055, 320);
+    applyFn();
+  }, 880);
+}
+function thornsReflect(){
+  if(C.thorns > 0 && C.hp > 0){ dealDamageToEnemy(C.thorns, false, true, { el:"铁" }); floatNum(952, 210, "🌵 反伤 -" + C.thorns, "#b8ffc9", { tier:"status" }); }
+}
+function endTurn(){
+  if(!C || C.busy || C.over || C.introLock) return;
+  SFX.click();
+  C.busy = true;
+  C.discard.push(...C.hand); C.hand = [];
+  if(C.pvuln > 0) C.pvuln--; if(C.pweak > 0) C.pweak--;
+  renderHand(); syncCombat();
+  setTimeout(() => {
+    if(C.wolf > 0 && C.hp > 0){ dealDamageToEnemy(C.wolf, false, true, { el:"影" }); floatNum(952, 190, "🐺 影狼 -" + C.wolf, "#cfe8ff", { tier:"status" });
+      if(C.hp <= 0){ syncCombat(); winCombat(); return; } }
+    if(C.burn > 0){ const bd = C.burn + (C.burnBonus || 0); C.hp -= bd; SFX.hitElement("火"); floatNum(952, 150, "🔥 -" + bd, "#ffc48a", { tier:"status", spread:16 }); C.burn = Math.max(0, C.burn - 1); bossThresholdCheck();
+      if(C.hp <= 0){ syncCombat(); winCombat(); return; } }
+    const m = C.move;
+    const afterAction = () => {
+      if(C.affix && C.affix.id === "regen" && C.hp > 0){ C.hp = Math.min(C.maxhp, C.hp + 6); floatNum(952, 170, "💚 再生 +6", "#b8ffc9", { tier:"status" }); }
+      if(C.mech){ C.mechTurns++; if(m.t !== "charge" && m.t !== "ultimate") C.moveIdx++; }
+      else C.moveIdx++;
+      if(C.vuln > 0) C.vuln--; if(C.weak > 0) C.weak--;
+      computeMove();
+      syncCombat();
+      if(C.hp <= 0){ winCombat(); return; }
+      if(R.hp <= 0){ loseCombat(); return; }
+      setTimeout(() => {
+        C.turn++; C.pblock = 0; C.combo = 0; C.firstAtkUsed = false;
+        if(C.regen) healPlayer(C.regen);
+        if(hasRelic("aegis")) C.pblock += 2;
+        if(C.pburn > 0){ damagePlayerRaw(C.pburn); floatNum(162, 380, "🔥 -" + C.pburn, "#ffc48a", { tier:"status" }); C.pburn--;
+          if(R.hp <= 0){ syncCombat(); loseCombat(); return; } }
+        C.energy = C.emax;
+        drawCards(5 + (hasRelic("boots") ? 1 : 0));
+        $("hand").classList.add("drawing"); setTimeout(() => $("hand").classList.remove("drawing"), 750);
+        C.busy = false; syncCombat();
+      }, 620);
+    };
+    if(m.t === "charge"){ C.charging = true; SFX.bossCharge(); toast(`⚠ ${C.name} 正在蓄力 —— 下回合释放「${m.name}」！`); setTimeout(afterAction, 500); }
+    else if(m.t === "ultimate"){ C.charging = false;
+      bossUltFx(m.name, () => { enemyHitPlayer(m.v, { ult: true }); if(m.burn) C.pburn = Math.max(C.pburn, m.burn); thornsReflect(); afterAction(); }); }
+    else if(m.t === "atk"){ enemyHitPlayer(m.v); thornsReflect(); afterAction(); }
+    else if(m.t === "atkx"){
+      let i = 0;
+      const nextHit = () => {
+        if(!C || R.hp <= 0){ thornsReflect(); afterAction(); return; }
+        enemyHitPlayer(m.v); syncCombat();
+        i++;
+        if(i < m.n && R.hp > 0) setTimeout(nextHit, 170);
+        else { thornsReflect(); afterAction(); }
+      };
+      nextHit();
+    }
+    else if(m.t === "def"){ C.block += m.v; SFX.block(); burstOn($("enemyframe"), "block"); afterAction(); }
+    else if(m.t === "buff"){ C.str += m.v; SFX.buff(); toast(`⚠️ ${C.name} 的力量提升了！`); afterAction(); }
+    else if(m.t === "vuln"){ C.pvuln += m.v; toast("💔 你被施加了易伤！"); afterAction(); }
+    else if(m.t === "burnp"){ C.pburn = Math.max(C.pburn, m.v); SFX.hitElement("火"); toast("🔥 你被点燃了！"); afterAction(); }
+    else afterAction();
+  }, 560);
+}
+function winCombat(){
+  if(C.over) return; C.over = true; R.kills++;
+  SFX.victory();
+  $("enemy").classList.add("dying");
+  if(hasRelic("fang")) healPlayer(4);
+  const eqHeal = equipStats().afterheal; if(eqHeal) healPlayer(eqHeal);
+  const goldBase = C.kind === "boss" ? 110 : C.kind === "elite" ? irnd(42, 58) : irnd(22, 38);
+  const gold = gainGold(goldBase);
+  let relic = null, equipDrop = null;
+  if(C.kind === "elite"){ relic = giveRelic(randomRelic(false));
+    if(Math.random() < 0.65) equipDrop = giveEquip(randomEquip(2)); }
+  if(C.kind === "boss"){ relic = giveRelic(R.relics.includes("dragonheart") ? randomRelic(false) : "dragonheart") || giveRelic(randomRelic(false));
+    equipDrop = giveEquip(randomEquip(3)) || giveEquip(randomEquip(2)); }
+  if(R.endless && R.efloor % 3 === 0 && !equipDrop)
+    equipDrop = giveEquip(randomEquip(Math.min(3, 1 + Math.floor(R.efloor / 6))));
+  if(R.endless) $("rewardsub").dataset.endless = "1";
+  if(C.kind === "boss"){ const bh = Math.round(R.maxhp * 0.15); if(bh > 0) setTimeout(() => { healPlayer(bh); toast(`👑 击破 Boss，恢复 ${bh} 点生命`); }, 350); }
+  $("rewardtitle").textContent = C.kind === "boss" ? "👑 Boss 击破！" : C.kind === "elite" ? "🔥 精英击破！" : "⚔️ 战 斗 胜 利";
+  $("rewardsub").innerHTML = `获得 <b style="color:#f0d48a">${gold} 金币</b> —— 选择一张牌加入你的牌组`;
+  $("rewardrelic").innerHTML = (relic
+    ? `<div class="relicget"><div class="ricon">${relic.icon}</div><div><div class="rname">获得遗物：${relic.name}</div><div class="rdesc">${relic.desc}</div></div></div>` : "")
+    + (equipDrop
+    ? `<div class="relicget" style="margin-top:10px"><div class="ricon">${equipDrop.icon}</div><div><div class="rname">获得装备：${equipDrop.name}（${SLOT_NAMES[equipDrop.slot]}）</div><div class="rdesc">${equipDrop.desc} —— 已放入背包，点顶栏「⚔️ 装备」穿戴</div></div></div>` : "");
+  const row = $("rewardcards"); row.innerHTML = "";
+  rollRewardCards(C.kind === "boss" ? 0.22 : 0).forEach(inst => {
+    const el = cardEl(inst, { big: true });
+    el.addEventListener("click", () => { R.deck.push(inst); syncTopbar(); finishReward(); });
+    row.appendChild(el);
+  });
+  $("rewardskip").style.display = ""; $("rewardgo").style.display = "none";
+  setTimeout(() => openPanel("panel-reward"), 720); syncCombat();
+}
+function rollRewardCards(legendBoost){
+  const out = [], usedTypes = new Set();
+  while(out.length < 3){
+    const r = Math.random();
+    const rarity = r < 0.08 + legendBoost ? "legendary" : r < 0.38 ? "rare" : "common";
+    const pool = Object.keys(CARDS).filter(id => CARDS[id].rarity === rarity && !CARDS[id].fused);
+    const id = pick(pool);
+    if(usedTypes.has(id) && Math.random() < 0.7) continue;
+    usedTypes.add(id); out.push({ id, up: false });
+  }
+  return out;
+}
+function finishReward(){ $("rewardskip").style.display = "none"; $("rewardcards").innerHTML = "";
+  $("rewardsub").textContent = "已加入牌组。"; $("rewardgo").style.display = ""; }
+$("rewardskip").addEventListener("click", () => { gainGold(15); finishReward(); $("rewardsub").textContent = "跳过选牌，+15 金币。"; });
+$("rewardgo").addEventListener("click", () => { closePanels(); C = null;
+  if(R.endless){ startEndlessFloor(); } else { nodeCleared(); } });
+function loseCombat(){ if(C) C.over = true; SFX.defeat(); gameOver(false); }
+function gameOver(won){
+  closePanels();
+  REC.best = Math.max(REC.best, R.act); if(won) REC.wins++; saveRec(); renderStartRecords();
+  $("bannertitle").textContent = won ? "🏆 深 渊 征 服 者" : "💀 倒 在 深 渊";
+  $("bannertext").innerHTML = won
+    ? `你击败了混沌主宰，登顶深渊第 10 层！<br>本局击杀 ${R.kills} · 经历 ${R.combats} 场战斗 · 收集遗物 ${R.relics.length} 件`
+    : R.endless
+    ? `♾️ 无尽深渊止步于第 ${R.efloor} 层。<br>本局击杀 ${R.kills} · 获得装备 ${Object.values(R.equip).filter(Boolean).length + R.bag.length} 件 · 收集遗物 ${R.relics.length} 件<br><span style="color:#8fa3ad">刷宝战绩不错 —— 换个构筑再冲一次层数。</span>`
+    : `止步于深渊第 ${R.act} 层。<br>本局击杀 ${R.kills} · 经历 ${R.combats} 场战斗 · 收集遗物 ${R.relics.length} 件<br><span style="color:#8fa3ad">换一套构筑，再来一局 —— 肉鸽的乐趣就在重开。</span>`;
+  $("banner").style.display = "flex";
+}
+function victory(){ gameOver(true); }
+
+/* ================= REST / SHOP / EVENT ================= */
+function restHealAmount(){ let base = R.maxhp * 0.3 * (hasRelic("spring") ? 1.3 : 1);
+  if(R.deck.some(d => d.id === "priestess")) base *= 1.15;
+  return Math.round(base); }
+function openRest(){
+  showScreen(null);
+  $("healamount").textContent = restHealAmount();
+  $("restdeck").style.display = "none";
+  $("fusedeck").style.display = "none";
+  openPanel("panel-rest");
+}
+let fuseSel = [];
+$("restfuse").addEventListener("click", () => {
+  $("restdeck").style.display = "none";
+  $("fusedeck").style.display = "block";
+  fuseSel = []; updateFuseBar();
+  const grid = document.querySelector(".fusegrid"); grid.innerHTML = "";
+  R.deck.forEach((inst, i) => { const el = cardEl(inst); el.classList.add("pickable");
+    el.addEventListener("click", () => {
+      const at = fuseSel.indexOf(i);
+      if(at >= 0){ fuseSel.splice(at, 1); el.classList.remove("selected"); }
+      else if(fuseSel.length < 2){ fuseSel.push(i); el.classList.add("selected"); }
+      updateFuseBar(); });
+    grid.appendChild(el); });
+});
+function updateFuseBar(){
+  const btn = $("fuseconfirm");
+  if(fuseSel.length === 2){
+    const a = R.deck[fuseSel[0]].id, b = R.deck[fuseSel[1]].id;
+    const res = fusionResult(a, b);
+    if(res){
+      $("fusehint").innerHTML = `已选 2 / 2 —— ${EL_ICONS[CARDS[a].el]}${CARDS[a].el} + ${EL_ICONS[CARDS[b].el]}${CARDS[b].el} 共鸣！将合成：<b style="color:#ffd76a">${CARDS[res.id].name}</b>（${CARDS[res.id].rarity === "legendary" ? "传说" : CARDS[res.id].rarity === "rare" ? "稀有" : "普通"}）`;
+      btn.disabled = false; btn.style.opacity = 1;
+    } else {
+      $("fusehint").innerHTML = `✖ 无共鸣：${EL_ICONS[CARDS[a].el]}${CARDS[a].el} 与 ${EL_ICONS[CARDS[b].el]}${CARDS[b].el} 元素不合，无法合成。<br><span style="color:#8fa3ad">规则：同元素必成 · 特定配方 · 相生元素对（火风/冰雷/血影/血火/雷风/冰铁/光影/火光/雷影/冰风）</span>`;
+      btn.disabled = true; btn.style.opacity = .45;
+    }
+  } else { $("fusehint").innerHTML = `已选 ${fuseSel.length} / 2 —— <span style="color:#8fa3ad">合成规则：同元素必成 · 特定配方 · 相生元素对</span>`; btn.disabled = true; btn.style.opacity = .45; }
+}
+$("fuseconfirm").addEventListener("click", () => {
+  if(fuseSel.length !== 2) return;
+  const [i, j] = [...fuseSel].sort((a, b) => b - a);
+  const res = fusionResult(R.deck[j].id, R.deck[i].id);
+  const nameA = CARDS[R.deck[i].id].name, nameB = CARDS[R.deck[j].id].name;
+  R.deck.splice(i, 1); R.deck.splice(j, 1);
+  R.deck.push(res); syncTopbar();
+  toast(`⚗️ ${nameA} + ${nameB} 熔炼成了「${CARDS[res.id].name}」！`);
+  closePanels(); nodeCleared();
+});
+/* ---- equip panel ---- */
+function equipCardHTML(id, equipped){
+  const e = EQUIP[id];
+  return `<div class="relicget equipitem" data-eq="${id}" style="cursor:pointer;margin:0;min-width:190px;${equipped ? "border-color:rgba(240,212,138,.75)" : ""}">
+    <div class="ricon">${e.icon}</div><div style="text-align:left"><div class="rname">${e.name} <span style="color:#8fa3ad;font-size:11px">${SLOT_NAMES[e.slot]} · ${["","普通","精良","史诗"][e.tier]}</span></div>
+    <div class="rdesc">${e.desc}</div></div></div>`;
+}
+function renderEquip(){
+  const slots = $("equipslots"); slots.innerHTML = "";
+  for(const slot of ["weapon", "armor", "charm"]){
+    const id = R.equip[slot];
+    if(id){ const d = document.createElement("div"); d.innerHTML = equipCardHTML(id, true);
+      d.firstChild.addEventListener("click", () => { R.bag.push(id); R.equip[slot] = null; renderEquip(); syncTopbar(); });
+      slots.appendChild(d.firstChild); }
+    else slots.innerHTML += `<div class="relicget" style="margin:0;min-width:190px;opacity:.45"><div class="ricon">▢</div><div style="text-align:left"><div class="rname">${SLOT_NAMES[slot]}</div><div class="rdesc">空</div></div></div>`;
+  }
+  const bag = $("equipbag"); bag.innerHTML = R.bag.length ? "" : `<span style="color:#8fa3ad;font-size:13px">背包空空 —— 精英和 Boss 会掉落装备，商店也有卖</span>`;
+  R.bag.forEach((id, i) => { const d = document.createElement("div"); d.innerHTML = equipCardHTML(id, false);
+    d.firstChild.addEventListener("click", () => { const slot = EQUIP[id].slot;
+      if(R.equip[slot]) R.bag.push(R.equip[slot]);
+      R.equip[slot] = id; R.bag.splice(i, 1); renderEquip(); syncTopbar(); toast(`⚔️ 装备了「${EQUIP[id].name}」`); });
+    bag.appendChild(d.firstChild); });
+}
+$("equipbtn").addEventListener("click", () => { if(R){ renderEquip(); openPanel("panel-equip"); } });
+$("equipclose").addEventListener("click", closePanels);
+$("restheal").addEventListener("click", () => { const h = restHealAmount(); healPlayer(h);
+  toast(`🔥 休整完毕，回复 ${h} 点生命`); closePanels(); nodeCleared(); });
+$("restupgrade").addEventListener("click", () => {
+  $("restdeck").style.display = "block";
+  deckGridInto(document.querySelector(".restgrid"), "upgrade", i => {
+    R.deck[i].up = true; toast(`🔨 「${CARDS[R.deck[i].id].name}」已升级！`);
+    closePanels(); nodeCleared(); });
+});
+let shopState = null;
+function openShop(){
+  showScreen(null);
+  shopState = { removed: false };
+  const row = $("shopcards"); row.innerHTML = "";
+  rollRewardCards(0).forEach(inst => {
+    const price = CARDS[inst.id].rarity === "legendary" ? 175 : CARDS[inst.id].rarity === "rare" ? irnd(72, 98) : irnd(45, 62);
+    const wrap = document.createElement("div"); wrap.className = "shopitem";
+    const el = cardEl(inst, { big: true }); wrap.appendChild(el);
+    const pr = document.createElement("div"); pr.className = "price"; pr.textContent = `🪙 ${price}`; wrap.appendChild(pr);
+    const btn = document.createElement("button"); btn.className = "buybtn"; btn.textContent = "购买";
+    btn.disabled = R.gold < price;
+    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; R.deck.push(inst);
+      wrap.classList.add("sold"); toast(`🛒 买下了「${CARDS[inst.id].name}」`); syncTopbar(); refreshShop(); });
+    wrap.appendChild(btn); row.appendChild(wrap);
+  });
+  const rid = randomRelic(false);
+  $("shoprelic").innerHTML = rid ? "" : "";
+  if(rid){ const price = irnd(150, 190); const r = RELICS[rid];
+    const box = document.createElement("div"); box.className = "relicget"; box.style.marginTop = "20px";
+    box.innerHTML = `<div class="ricon">${r.icon}</div><div style="text-align:left"><div class="rname">${r.name}</div><div class="rdesc">${r.desc}</div></div>
+      <button class="buybtn" style="margin-left:auto;padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:800;background:linear-gradient(180deg,#ffe9a8,#d8a83e);color:#231a05">🪙 ${price} 购买</button>`;
+    const btn = box.querySelector("button"); btn.disabled = R.gold < price;
+    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; giveRelic(rid);
+      box.style.opacity = .35; btn.disabled = true; toast(`🛒 买下了遗物「${r.name}」`); syncTopbar(); refreshShop(); });
+    $("shoprelic").appendChild(box); shopState.relicBox = box; }
+  const eid = randomEquip(3);
+  $("shopequip").innerHTML = "";
+  if(eid){ const e = EQUIP[eid]; const price = [0, 90, 140, 210][e.tier];
+    const box = document.createElement("div"); box.className = "relicget"; box.style.marginTop = "12px";
+    box.innerHTML = `<div class="ricon">${e.icon}</div><div style="text-align:left"><div class="rname">${e.name} <span style="color:#8fa3ad;font-size:11px">${SLOT_NAMES[e.slot]} · ${["","普通","精良","史诗"][e.tier]}</span></div><div class="rdesc">${e.desc}</div></div>
+      <button class="buybtn" style="margin-left:auto;padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:800;background:linear-gradient(180deg,#ffe9a8,#d8a83e);color:#231a05">🪙 ${price} 购买</button>`;
+    const btn = box.querySelector("button"); btn.disabled = R.gold < price;
+    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; giveEquip(eid);
+      box.style.opacity = .35; btn.disabled = true; toast(`🛒 买下了装备「${e.name}」（在顶栏装备面板穿戴）`); syncTopbar(); refreshShop(); });
+    $("shopequip").appendChild(box); }
+  $("shopdeck").style.display = "none";
+  refreshShop(); openPanel("panel-shop");
+}
+function refreshShop(){ $("shopgold").textContent = R.gold;
+  $("shopremove").disabled = shopState.removed || R.gold < 75;
+  $("shopremove").style.opacity = $("shopremove").disabled ? .5 : 1; }
+$("shopremove").addEventListener("click", () => {
+  if(shopState.removed || R.gold < 75) return;
+  $("shopdeck").style.display = "block";
+  deckGridInto(document.querySelector(".shopgrid"), true, i => {
+    R.gold -= 75; R.deck.splice(i, 1); shopState.removed = true;
+    toast("🗑 已将一张牌移出牌组"); $("shopdeck").style.display = "none"; syncTopbar(); refreshShop(); });
+});
+$("shopleave").addEventListener("click", () => { closePanels(); nodeCleared(); });
+
+const EVENTS = [
+  { icon:"🩸", title:"血祭坛", desc:"一座仍在滴血的石坛。坛上的铭文写着：以血换力，公平交易。",
+    choices:[
+      { label:"献祭祈福", sub:"失去 8 点生命，获得一件随机遗物", fn(){ damagePlayerRaw(8); const r = giveRelic(randomRelic(false));
+          return r ? `鲜血被祭坛吸收……你获得了遗物「${r.name}」！` : "鲜血被祭坛吸收……但什么也没发生（遗物已集齐）。"; } },
+      { label:"转身离开", sub:"无事发生", fn(){ return "你绕开了祭坛，继续前行。"; } } ] },
+  { icon:"🧰", title:"上锁的宝箱", desc:"路边的黑铁宝箱，锁扣上刻着荆棘纹——像是防着什么。",
+    choices:[
+      { label:"撬开它", sub:"获得 110 金币，但机关会伤到你（-5 生命）", fn(){ const g = gainGold(110); damagePlayerRaw(5);
+          return `锁扣弹开的瞬间荆棘刺伤了你的手，但箱底满是金币：+${g} 金币。`; } },
+      { label:"只捡旁边的散币", sub:"获得 30 金币", fn(){ const g = gainGold(30); return `你捡走了箱子旁散落的金币：+${g}。`; } } ] },
+  { icon:"🔨", title:"锻造之魂", desc:"一团悬浮的蓝色火焰缓缓开口：「把你的武器……或者你的身体，交给我淬炼。」",
+    choices:[
+      { label:"淬炼一张牌", sub:"随机一张未升级的牌得到升级", fn(){ const pool = R.deck.map((d,i)=>d.up?null:i).filter(x=>x!==null);
+          if(!pool.length) return "你的牌都已升级，火焰失望地缩回了暗处。";
+          const i = pick(pool); R.deck[i].up = true; return `蓝焰舔过牌面——「${CARDS[R.deck[i].id].name}」升级了！`; } },
+      { label:"汲取暖意", sub:"回复 12 点生命", fn(){ healPlayer(12); return "火焰的暖意流遍全身，回复 12 点生命。"; } } ] },
+  { icon:"🎲", title:"赌徒之桌", desc:"斗篷下的人影推过来一副骰子：「押 50，赢了拿 120。深渊里，运气也是实力。」",
+    choices:[
+      { label:"押注 50 金币", sub:"50% 赢得 120 金币", fn(){ if(R.gold < 50) return "你摸了摸口袋——金币不够，对方耸耸肩收起了骰子。";
+          R.gold -= 50; syncTopbar();
+          if(Math.random() < 0.5){ const g = gainGold(120); return `骰子停在了大点数！你赢了 ${g} 金币。`; }
+          return "骰子骨碌碌停下——小点数。50 金币打了水漂。"; } },
+      { label:"不赌，继续赶路", sub:"无事发生", fn(){ return "你摇摇头。对方也不勉强，身影没入黑暗。"; } } ] },
+  { icon:"🔨", title:"流浪铁匠", desc:"一个背着熔炉的铁匠在路边支起了摊子：「深渊里捡的料子，我免费给你打一件装备 —— 就当交个朋友。」",
+    choices:[
+      { label:"请他打造一件", sub:"获得一件随机装备（进背包）", fn(){ const e = giveEquip(randomEquip(3));
+          return e ? `火花四溅，一件「${e.name}」新鲜出炉！已放入背包，记得在顶栏「⚔️ 装备」里穿上。` : "铁匠翻遍了料子摊手：能打的样式你都齐了。"; } },
+      { label:"卖给他矿石", sub:"获得 60 金币", fn(){ const g = gainGold(60); return `铁匠爽快地掏了钱：+${g} 金币。`; } } ] },
+];
+function openEvent(){
+  showScreen(null);
+  const ev = pick(EVENTS);
+  $("eventicon").textContent = ev.icon; $("eventtitle").textContent = ev.title; $("eventdesc").textContent = ev.desc;
+  const box = $("eventchoices"); box.innerHTML = "";
+  ev.choices.forEach(ch => {
+    const b = document.createElement("button"); b.className = "ghostbtn";
+    b.innerHTML = `${ch.label}<div style="font-size:11px;color:#8fa3ad;font-weight:400;margin-top:3px">${ch.sub}</div>`;
+    b.addEventListener("click", () => { const result = ch.fn(); syncTopbar();
+      $("eventdesc").textContent = result; box.innerHTML = "";
+      const go = document.createElement("button"); go.className = "goldbtn"; go.textContent = "继续前进 →";
+      go.addEventListener("click", () => { closePanels();
+        if(R.hp <= 0){ gameOver(false); return; } nodeCleared(); });
+      box.appendChild(go); });
+    box.appendChild(b);
+  });
+  openPanel("panel-event");
+}
+
+/* ================= AUTOTEST ================= */
+window.__state = () => ({ act: R ? R.act : 0, hp: R ? R.hp : 0, gold: R ? R.gold : 0,
+  deck: R ? R.deck.length : 0, relics: R ? R.relics.length : 0, pos: R ? R.pos : null,
+  ehp: C ? C.hp : null, turn: C ? C.turn : null, busy: C ? C.busy : null,
+  screen: document.querySelector(".screen.on") ? document.querySelector(".screen.on").id : "none",
+  banner: $("banner").style.display === "flex",
+  panel: (document.querySelector(".panelwrap.on") || {}).id || "none" });
+if(new URLSearchParams(location.search).has("autotest")){
+  setInterval(() => {
+    if($("banner").style.display === "flex"){ window.__autoDone = $("bannertitle").textContent; return; }
+    if($("screen-start").classList.contains("on")){ $("startbtn").click(); return; }
+    if($("panel-reward").classList.contains("on")){
+      if($("rewardgo").style.display !== "none"){ $("rewardgo").click(); }
+      else { const c = $("rewardcards").querySelector(".card"); if(c) c.click(); else $("rewardskip").click(); } return; }
+    if($("panel-rest").classList.contains("on")){ $("restheal").click(); return; }
+    if($("panel-shop").classList.contains("on")){ $("shopleave").click(); return; }
+    if($("panel-event").classList.contains("on")){ const b = $("eventchoices").querySelector("button"); if(b) b.click(); return; }
+    if($("panel-deck").classList.contains("on")){ closePanels(); return; }
+    if($("screen-combat").classList.contains("on") && C && !C.busy && !C.over){
+      const cards = [...document.querySelectorAll("#hand .card")];
+      const playable = cards.filter(el => !el.classList.contains("unplayable"));
+      if(playable.length){ playable.sort((a,b) => CARDS[C.hand[+b.dataset.hidx].inst.id].cost - CARDS[C.hand[+a.dataset.hidx].inst.id].cost);
+        playable[0].click(); }
+      else $("endturn").click();
+      return; }
+    if($("screen-map").classList.contains("on")){ const n = document.querySelector("#mapnodes .node.avail"); if(n) n.click(); return; }
+  }, 850);
+}
+</script>
+</body>
+</html>
