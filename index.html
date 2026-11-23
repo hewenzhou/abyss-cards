@@ -170,6 +170,7 @@
     box-shadow:0 0 0 4px rgba(24,6,8,.82), 0 0 0 6px rgba(255,95,70,.24), 0 24px 66px rgba(0,0,0,.8), 0 0 60px rgba(255,75,55,.38); }
   #enemyframe .eimg { position:absolute; inset:0; overflow:hidden; border-radius:inherit; }
   #enemyframe .eimg img { width:100%; height:100%; object-fit:cover; object-position:top center; }
+  #enemyframe .eimg video { width:100%; height:100%; object-fit:cover; object-position:top center; display:block; }
   #enemyframe .eimg::after { content:""; position:absolute; inset:0;
     background:linear-gradient(180deg, rgba(12,18,32,.08), rgba(4,6,12,.45) 84%); }
   #enemy.shake { animation:eshake .42s; }
@@ -615,7 +616,7 @@
     <div id="elres"></div>
     <div id="enemy">
       <div id="enemyframe">
-        <div class="eimg"><img id="enemyimg" src="" alt=""></div>
+        <div class="eimg"><img id="enemyimg" src="" alt=""><video id="enemyvid" muted loop playsinline autoplay preload="auto" style="display:none"></video></div>
         <div id="enemyname">敌人<small></small></div>
         <div id="estatuses"></div>
         <div id="eblock">🛡 <span id="eblocknum">0</span></div>
@@ -708,6 +709,11 @@
       <div id="restdeck" style="display:none"><div class="psub" style="margin-top:18px">选择要升级的牌（点一张）</div><div class="deckgrid restgrid"></div></div>
       <div id="fusedeck" style="display:none"><div class="psub" style="margin-top:18px">选择 <b>两张</b>牌投入熔炉 —— 特定组合有专属合成牌，同元素与相生元素可融合</div><div class="deckgrid fusegrid"></div>
         <div class="choicebtns" style="margin-top:16px"><span id="fusehint" style="align-self:center;color:#9fb4c0;font-size:13px">已选 0 / 2</span><button class="goldbtn" id="fuseconfirm" disabled>投入熔炉</button></div></div>
+      <div id="fusereveal" style="display:none;text-align:center;margin-top:8px">
+        <div id="fusereveal-title" style="font-size:17px;font-weight:800;color:#ffd76a;letter-spacing:1px"></div>
+        <div id="fusereveal-card" style="display:flex;justify-content:center;margin:16px 0 6px"></div>
+        <div class="choicebtns" style="justify-content:center"><button class="goldbtn" id="fusereveal-ok">✦ 收入牌组</button></div>
+      </div>
     </div>
   </div>
 
@@ -831,18 +837,41 @@ const SFX = (() => {
     src.connect(flt); flt.connect(g); g.connect(c.destination);
     src.start(t); src.stop(t + dur + 0.02);
   }
+  /* ---- 程序化暗黑氛围 BGM：低音垫和弦缓慢轮换（Am–F–G–Em），无音频素材 ---- */
+  let bgmGain = null, bgmTimer = null, bgmStep = 0;
+  const BGM_CHORDS = [[110, 164.81, 220, 261.63], [87.31, 130.81, 174.61, 220], [98, 146.83, 196, 246.94], [82.41, 123.47, 164.81, 196]];
+  function bgmChord(freqs, dur){
+    const c = ensure(); if(!c || !bgmGain) return;
+    const t = c.currentTime;
+    freqs.forEach((f, i) => {
+      const o = c.createOscillator(), g = c.createGain(), fl = c.createBiquadFilter();
+      o.type = i === 0 ? "sine" : "triangle"; o.frequency.value = f;
+      fl.type = "lowpass"; fl.frequency.value = 720;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(i === 0 ? 0.055 : 0.03, t + 1.6);
+      g.gain.linearRampToValueAtTime(0.0001, t + dur);
+      o.connect(fl); fl.connect(g); g.connect(bgmGain);
+      o.start(t); o.stop(t + dur + 0.1);
+    });
+  }
+  function startBgm(){
+    const c = ensure(); if(!c || bgmTimer) return;
+    bgmGain = c.createGain(); bgmGain.gain.value = muted ? 0 : 0.9; bgmGain.connect(c.destination);
+    const step = () => { bgmChord(BGM_CHORDS[bgmStep % BGM_CHORDS.length], 7.5); bgmStep++; };
+    step(); bgmTimer = setInterval(step, 7000);
+  }
   function playCustom(name){
     if(muted || !customAudio[name]) return false;
     try{ const a = customAudio[name].cloneNode(); a.volume = 0.75; a.play().catch(() => {}); return true; }catch(e){ return false; }
   }
   const api = {
     override(name, url){ customAudio[name] = new Audio(url); },
-    toggle(){ muted = !muted; const b = $("sfxbtn"); if(b) b.textContent = muted ? "🔇" : "🔊"; return !muted; },
+    toggle(){ muted = !muted; const b = $("sfxbtn"); if(b) b.textContent = muted ? "🔇" : "🔊"; if(bgmGain && ctx) bgmGain.gain.linearRampToValueAtTime(muted ? 0 : 0.9, ctx.currentTime + 0.4); return !muted; },
     cardHover(){ if(playCustom("cardHover")) return; tone(620, 880, 0.045, "triangle", 0.035); },
     cardPlay(){ if(playCustom("cardPlay")) return; noise(0.14, 1400, 0.9, 0.11); tone(260, 520, 0.11, "triangle", 0.07); },
-    hitLight(pitch = 1){ if(playCustom("hitLight")) return; tone(175 * pitch, 52, 0.13, "triangle", 0.22); noise(0.11, 2100 * pitch, 1.4, 0.16); tone(760 * pitch, 260, 0.07, "sawtooth", 0.06); },
-    hitHeavy(pitch = 1){ if(playCustom("hitHeavy")) return; tone(135 * pitch, 36, 0.26, "sine", 0.3); tone(220 * pitch, 65, 0.18, "sawtooth", 0.12); noise(0.18, 1350, 0.9, 0.22); noise(0.12, 3400, 1.8, 0.12, 0.02); },
-    hitCrit(){ if(playCustom("hitCrit")) return; tone(110, 32, 0.34, "sine", 0.34); tone(520, 1080, 0.14, "triangle", 0.14); tone(880, 1320, 0.22, "sine", 0.1, 0.04); noise(0.24, 1800, 0.8, 0.26); },
+    hitLight(pitch = 1){ if(playCustom("hitLight")) return; noise(0.07, 2600 * pitch, 0.8, 0.2); noise(0.12, 700 * pitch, 0.7, 0.16, 0.005, "lowpass"); tone(150 * pitch, 70, 0.09, "sine", 0.2); },
+    hitHeavy(pitch = 1){ if(playCustom("hitHeavy")) return; tone(95 * pitch, 34, 0.28, "sine", 0.34); noise(0.2, 480, 0.6, 0.26, 0, "lowpass"); noise(0.08, 2800, 1, 0.18, 0.004); tone(64, 30, 0.32, "sine", 0.22, 0.01); },
+    hitCrit(){ if(playCustom("hitCrit")) return; tone(88, 30, 0.36, "sine", 0.36); noise(0.1, 3400, 0.9, 0.22); noise(0.28, 620, 0.6, 0.24, 0.01, "lowpass"); tone(1180, 1180, 0.09, "sine", 0.07, 0.01); tone(1560, 1560, 0.12, "sine", 0.05, 0.05); },
     hitElement(el){
       if(el === "火"){ noise(0.26, 620, 0.7, 0.2, 0, "lowpass"); tone(140, 48, 0.22, "sawtooth", 0.12); }
       else if(el === "冰"){ tone(1280, 1860, 0.12, "sine", 0.1); tone(1680, 920, 0.18, "triangle", 0.09, 0.04); noise(0.14, 4200, 2.2, 0.12); }
@@ -857,7 +886,7 @@ const SFX = (() => {
     blockAbsorb(){ if(playCustom("blockAbsorb")) return; tone(540, 310, 0.16, "triangle", 0.18); tone(1080, 740, 0.14, "sine", 0.1, 0.01); noise(0.09, 2600, 2.4, 0.14); },
     heal(){ if(playCustom("heal")) return; tone(523, 659, 0.18, "sine", 0.11); tone(659, 784, 0.24, "sine", 0.11, 0.07); tone(784, 1046, 0.3, "sine", 0.09, 0.14); },
     buff(){ if(playCustom("buff")) return; tone(330, 495, 0.16, "triangle", 0.11); tone(495, 660, 0.22, "triangle", 0.1, 0.07); },
-    playerHit(){ if(playCustom("playerHit")) return; tone(115, 38, 0.24, "sawtooth", 0.24); noise(0.16, 720, 0.9, 0.22, 0, "lowpass"); },
+    playerHit(){ if(playCustom("playerHit")) return; tone(100, 36, 0.22, "sine", 0.3); noise(0.18, 520, 0.7, 0.24, 0, "lowpass"); noise(0.06, 2000, 1, 0.1, 0.003); },
     legendaryCharge(){ if(playCustom("legendaryCharge")) return; tone(95, 320, 0.42, "sawtooth", 0.12); tone(220, 660, 0.42, "triangle", 0.11); noise(0.38, 1600, 1.4, 0.1); },
     legendaryBreakout(){ if(playCustom("legendaryBreakout")) return; tone(78, 32, 0.85, "sawtooth", 0.24); tone(110, 55, 0.7, "sine", 0.3); noise(0.32, 3400, 1.2, 0.24); noise(0.55, 900, 0.7, 0.2, 0.04, "lowpass"); tone(660, 1320, 0.25, "triangle", 0.1, 0.02); },
     legendaryImpact(){ if(playCustom("legendaryImpact")) return; tone(90, 28, 0.48, "sine", 0.36); tone(180, 44, 0.36, "sawtooth", 0.18); noise(0.34, 1600, 0.75, 0.3); tone(880, 1760, 0.18, "triangle", 0.11); },
@@ -869,7 +898,7 @@ const SFX = (() => {
     coin(){ if(playCustom("coin")) return; tone(988, 1318, 0.12, "sine", 0.09); tone(1318, 1568, 0.16, "sine", 0.08, 0.06); },
     click(){ tone(520, 380, 0.04, "triangle", 0.05); }
   };
-  addEventListener("pointerdown", () => ensure(), { once: true });
+  addEventListener("pointerdown", () => { ensure(); startBgm(); }, { once: true });
   return api;
 })();
 $("sfxbtn").addEventListener("click", () => { SFX.toggle(); SFX.click(); });
@@ -1356,6 +1385,16 @@ const ENEMIES = {
   warlock:{ name:"深渊术士", en:"ABYSS WARLOCK", img:"assets/enemy-warlock.webp", hp:52, moves:[ {t:"vuln", v:1}, {t:"atk", v:9}, {t:"atk", v:13}, {t:"buff", v:2} ] },
   lavabeast:{ name:"熔岩魔兽", en:"MAGMA HOUND", img:"assets/enemy-lavabeast.webp", hp:58, moves:[ {t:"atk", v:11}, {t:"atk", v:11}, {t:"burnp", v:3}, {t:"atk", v:15} ] },
 };
+/* 怪物待机循环视频：按立绘路径映射，普通怪与复用同一立绘的 Boss 自动生效；无视频的保持静态图 */
+const IDLE_VIDEOS = {
+  "assets/enemy-shadow.webp": "assets/enemy-shadow-idle.mp4",
+  "assets/enemy-wraith.webp": "assets/enemy-wraith-idle.mp4",
+  "assets/enemy-golem.webp": "assets/enemy-golem-idle.mp4",
+  "assets/enemy-warlock.webp": "assets/enemy-warlock-idle.mp4",
+  "assets/enemy-lavabeast.webp": "assets/enemy-lavabeast-idle.mp4",
+  "assets/boss-voidlord.webp": "assets/boss-voidlord-idle.mp4",
+  "assets/boss-dragon.webp": "assets/boss-dragon-idle.mp4"
+};
 const BOSSES = {
   1:{ name:"虚蚀骑士王", en:"KING OF EROSION", img:"assets/enemy-wraith.webp", hp:115, mech:"erosion", ultName:"虚蚀斩", ultDmg:26, moves:[ {t:"atk", v:14}, {t:"def", v:12}, {t:"atkx", v:10, n:2}, {t:"atk", v:20} ] },
   2:{ name:"裂芯魔像", en:"COREBREAK GOLEM", img:"assets/enemy-golem.webp", hp:165, mech:"core", ultName:"裂芯重击", ultDmg:30, moves:[ {t:"def", v:15}, {t:"atk", v:16}, {t:"buff", v:2}, {t:"atk", v:22} ] },
@@ -1725,6 +1764,9 @@ function startCombat(kind){
   computeMove();
   R.combats++;
   $("enemyimg").src = C.img;
+  const idleVid = IDLE_VIDEOS[C.img], ev = $("enemyvid");
+  if(idleVid){ ev.poster = C.img; if(ev.getAttribute("src") !== idleVid) ev.src = idleVid; ev.style.display = "block"; $("enemyimg").style.display = "none"; const pr = ev.play(); if(pr) pr.catch(()=>{}); }
+  else { ev.pause(); ev.removeAttribute("src"); ev.load(); ev.style.display = "none"; $("enemyimg").style.display = "block"; }
   $("enemy").classList.remove("dying");
   $("enemy").classList.toggle("bossmode", kind === "boss");
   $("enemyname").innerHTML = `${C.name}<small>${C.en}</small>`;
@@ -2465,6 +2507,8 @@ function openRest(){
   $("healamount").textContent = restHealAmount();
   $("restdeck").style.display = "none";
   $("fusedeck").style.display = "none";
+  $("fusereveal").style.display = "none";
+  const rrow = document.querySelector("#panel-rest .panel > .choicebtns"); if(rrow) rrow.style.display = "";
   openPanel("panel-rest");
 }
 let fuseSel = [];
@@ -2495,15 +2539,23 @@ function updateFuseBar(){
     }
   } else { $("fusehint").innerHTML = `已选 ${fuseSel.length} / 2 —— <span style="color:#8fa3ad">合成规则：同元素必成 · 特定配方 · 相生元素对</span>`; btn.disabled = true; }
 }
+function showRestReveal(title, inst){
+  $("restdeck").style.display = "none";
+  $("fusedeck").style.display = "none";
+  const row = document.querySelector("#panel-rest .panel > .choicebtns"); if(row) row.style.display = "none";
+  $("fusereveal-title").textContent = title;
+  const box = $("fusereveal-card"); box.innerHTML = ""; box.appendChild(cardEl(inst, { big: true }));
+  $("fusereveal").style.display = "block";
+}
+$("fusereveal-ok").addEventListener("click", () => { SFX.click(); $("fusereveal").style.display = "none"; closePanels(); nodeCleared(); });
 $("fuseconfirm").addEventListener("click", () => {
   if(fuseSel.length !== 2) return;
   const [i, j] = [...fuseSel].sort((a, b) => b - a);
   const res = fusionResult(R.deck[j].id, R.deck[i].id);
   const nameA = CARDS[R.deck[i].id].name, nameB = CARDS[R.deck[j].id].name;
   R.deck.splice(i, 1); R.deck.splice(j, 1);
-  R.deck.push(res); syncTopbar(); SFX.reaction();
-  toast(`⚗️ ${nameA} + ${nameB} 熔炼成了「${CARDS[res.id].name}」！`);
-  closePanels(); nodeCleared();
+  R.deck.push(res); syncTopbar(); SFX.reaction(); SFX.furyBurst();
+  showRestReveal(`⚗️ 熔炼成功！${nameA} + ${nameB} →「${CARDS[res.id].name}」`, res);
 });
 function equipCardHTML(id, equipped){
   const e = EQUIP[id];
@@ -2534,8 +2586,8 @@ $("restheal").addEventListener("click", () => { const h = restHealAmount(); heal
 $("restupgrade").addEventListener("click", () => {
   $("restdeck").style.display = "block";
   deckGridInto(document.querySelector(".restgrid"), "upgrade", i => {
-    R.deck[i].up = true; SFX.buff(); toast(`🔨 「${CARDS[R.deck[i].id].name}」已升级！`);
-    closePanels(); nodeCleared(); });
+    R.deck[i].up = true; SFX.buff(); SFX.reaction();
+    showRestReveal(`🔨 锻造完成！「${CARDS[R.deck[i].id].name}」已升级`, R.deck[i]); });
 });
 let shopState = null;
 function openShop(){
