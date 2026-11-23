@@ -312,7 +312,9 @@
   #legchar { position:absolute; left:50%; top:50%; height:640px; max-width:760px; object-fit:contain; opacity:0; pointer-events:none; filter: drop-shadow(0 26px 60px rgba(0,0,0,.75)); transform: translate(-50%,-50%); z-index:5; }
   #legstage { position:absolute; inset:0; z-index:5; opacity:0; visibility:hidden; pointer-events:none; overflow:hidden; border:none; border-radius:0; box-shadow:none; background:#03060a; }
   #legstage.on { opacity:1; visibility:visible; }
-  #legvideo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 22%; border:none; border-radius:0; outline:none; background:#03060a; transform-origin:center 38%; will-change:transform,filter,opacity; }
+  #legposter { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 22%; border:none; border-radius:0; transform-origin:center 38%; }
+  #legvideo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 22%; border:none; border-radius:0; outline:none; background:transparent; transform-origin:center 38%; opacity:0; transition:opacity .16s ease-out; }
+  #legvideo.ready { opacity:1; }
   #legblend { position:absolute; inset:0; z-index:6; pointer-events:none;
     background:radial-gradient(ellipse at 50% 44%, transparent 56%, rgba(4,8,13,.42) 86%, rgba(3,6,10,.82) 100%), linear-gradient(180deg, rgba(3,6,10,.45) 0%, transparent 16%, transparent 74%, rgba(3,6,10,.78) 100%); }
   #legtitle { position:absolute; left:54px; bottom:52px; z-index:8; pointer-events:none; opacity:0; text-align:left; }
@@ -494,7 +496,7 @@
   <div id="legmoment">
     <div class="bigcardwrap" id="legcard"><div id="legcrack"></div></div>
     <img id="legchar" alt="">
-    <div id="legstage"><video id="legvideo" muted playsinline preload="auto"></video><div id="legblend"></div></div>
+    <div id="legstage"><img id="legposter" alt=""><video id="legvideo" muted playsinline preload="auto"></video><div id="legblend"></div></div>
     <div id="legtitle"><div class="lt-tag">✦ 传 说 降 临 · LEGENDARY ✦</div><div class="lt-name" id="legname"></div><div class="lt-bar"></div><div class="lt-bond" id="legbond"></div></div>
     <div id="legskip">点击任意处跳过</div>
   </div>
@@ -766,32 +768,28 @@ const HERO_THEME = {
   assassin:   { accent:"#fb7185", glow:"rgba(244,63,94,.9)",   startRatio:0.48, objPos:"center 22%", elFx:"slash" },
   priestess:  { accent:"#93c5fd", glow:"rgba(147,197,253,.9)", startRatio:0.48, objPos:"center 20%", elFx:"heal" }
 };
-const VID_CACHE = {}, _vidPending = {};
-function fetchVideoBlob(url){
-  if(!url) return Promise.resolve(url);
-  if(VID_CACHE[url]) return Promise.resolve(VID_CACHE[url]);
-  if(_vidPending[url]) return _vidPending[url];
-  if(location.protocol === "file:") return Promise.resolve(url);
-  _vidPending[url] = fetch(url).then(r => { if(!r.ok) throw new Error(r.status); return r.blob(); }).then(blob => {
-    const objUrl = URL.createObjectURL(blob);
-    VID_CACHE[url] = objUrl;
-    document.querySelectorAll(`img[data-vwait="${url}"]`).forEach(img => {
-      const v = document.createElement("video");
-      v.src = objUrl; v.poster = img.src; v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
-      img.replaceWith(v);
-    });
-    return objUrl;
-  }).catch(() => url);
-  return _vidPending[url];
+let _warmedVid = "";
+function warmLegendaryVideo(id){
+  const d = CARDS[id]; if(!d || !d.video) return;
+  const lm = $("legmoment"); if(lm && lm.classList.contains("on")) return;
+  const lv = $("legvideo"); if(!lv || _warmedVid === d.video) return;
+  _warmedVid = d.video;
+  const th = HERO_THEME[id] || { startRatio: 0.48 };
+  lv.src = d.video;
+  const doSeek = () => {
+    if(lv.duration && isFinite(lv.duration)){
+      try{ lv.currentTime = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio); }catch(e){}
+    }
+  };
+  if(lv.readyState >= 1) doSeek(); else lv.addEventListener("loadedmetadata", doSeek, { once: true });
+  lv.load();
 }
 function preloadLegendaryVideos(list){
   for(const inst of list){
-    const d = CARDS[inst.id];
-    if(d && d.video) fetchVideoBlob(d.video);
+    if(CARDS[inst.id] && CARDS[inst.id].video){ warmLegendaryVideo(inst.id); break; }
   }
 }
-/* Warm up starter legendary hero video right on start screen so first cast is instant */
-setTimeout(() => fetchVideoBlob("assets/hero-breakout.mp4"), 250);
+setTimeout(() => warmLegendaryVideo("hero"), 200);
 function fit(){ const w = innerWidth, h = innerHeight;
   if(h > w){ window.__rot = 90; window.__scale = Math.min(w / 720, h / 1280); }
   else { window.__rot = 0; window.__scale = Math.min(w / 1280, h / 720); }
@@ -1167,20 +1165,10 @@ $("deckbtn").addEventListener("click", ()=>{ if(R) openDeckView(); });
 $("deckclose").addEventListener("click", closePanels);
 function cardEl(inst, opts = {}){
   const d = CARDS[inst.id];
-  let art;
-  if(d.video){
-    const cached = VID_CACHE[d.video];
-    if(cached || location.protocol === "file:"){
-      art = `<video src="${cached || d.video}" poster="${d.poster}" autoplay loop muted playsinline></video><span class="dyn">▶ 动态卡面</span>`;
-    } else {
-      fetchVideoBlob(d.video);
-      art = `<img src="${d.poster}" data-vwait="${d.video}" alt=""><span class="dyn">▶ 动态卡面</span>`;
-    }
-  } else if(d.art){
-    art = `<img src="${d.art}" alt="">`;
-  } else {
-    art = `<div style="position:absolute;inset:0;background:${d.grad}"></div><span class="glyph">${d.glyph}</span>`;
-  }
+  const art = d.video
+    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline preload="metadata"></video><span class="dyn">▶ 动态卡面</span>`
+    : d.art ? `<img src="${d.art}" alt="">`
+    : `<div style="position:absolute;inset:0;background:${d.grad}"></div><span class="glyph">${d.glyph}</span>`;
   const el = document.createElement("div");
   el.className = "card " + d.rarity + (opts.big ? " big" : "");
   el.innerHTML = `${inst.up ? '<div class="uptag">强化 +</div>' : ""}<div class="cost">${d.cost}</div>
@@ -1553,9 +1541,9 @@ function spawnShardsToward(count = 12){
 }
 function showLegendaryMoment(inst, done){
   const lm = $("legmoment"), wrap = $("legcard"), crack = $("legcrack");
-  const ch = $("legchar"), stage2 = $("legstage"), lv = $("legvideo");
+  const ch = $("legchar"), stage2 = $("legstage"), lp = $("legposter"), lv = $("legvideo");
   const titleBox = $("legtitle"), skipHint = $("legskip");
-  cancelAnims(wrap, crack, stage2, lv, titleBox, ch);
+  cancelAnims(wrap, crack, stage2, lp, lv, titleBox, ch);
   const d = CARDS[inst.id];
   const th = HERO_THEME[inst.id] || { accent:"#ffe299", glow:"rgba(255,200,90,.85)", startRatio:0.48, objPos:"center 22%", elFx:"bolt" };
   lm.style.setProperty("--leg-accent", th.accent);
@@ -1573,20 +1561,23 @@ function showLegendaryMoment(inst, done){
   titleBox.style.opacity = 0;
   stage2.classList.remove("on");
   stage2.style.opacity = ""; stage2.style.transform = "scale(1)"; stage2.style.clipPath = "none";
-  lv.poster = d.poster || "";
+  lp.src = d.poster || "";
+  lp.style.objectPosition = th.objPos;
+  lp.style.transform = "scale(1)"; lp.style.filter = "brightness(1)";
+  lv.classList.remove("ready");
   lv.style.objectPosition = th.objPos;
   lv.style.transform = "scale(1)"; lv.style.filter = "brightness(1)";
   lm.classList.add("on");
   SFX.legendaryCharge();
   const timers = [];
-  let finished = false, onTimeUpdate = null;
+  let finished = false;
   const onKey = e => { if(e.code === "Space" || e.code === "Escape") skip(); };
   const finishAll = () => {
     if(finished) return; finished = true;
     timers.forEach(t => clearTimeout(t));
-    if(onTimeUpdate) lv.removeEventListener("timeupdate", onTimeUpdate);
-    cancelAnims(wrap, crack, stage2, lv, titleBox, ch);
+    cancelAnims(wrap, crack, stage2, lp, lv, titleBox, ch);
     lm.classList.remove("on"); stage2.classList.remove("on");
+    lv.classList.remove("ready");
     try{ lv.pause(); }catch(e){}
     lm.removeEventListener("click", skip);
     removeEventListener("keydown", onKey);
@@ -1596,30 +1587,31 @@ function showLegendaryMoment(inst, done){
   lm.addEventListener("click", skip);
   addEventListener("keydown", onKey);
   if(d.video){
-    let phase1Done = false, videoSeeked = false, phase2Fired = false, climaxFired = false, startT = 0;
-    const triggerClimax = () => {
-      if(finished || climaxFired) return; climaxFired = true;
-      if(onTimeUpdate) lv.removeEventListener("timeupdate", onTimeUpdate);
-      try{ lv.pause(); }catch(e){}
-      SFX.legendaryImpact();
-      FX.slash(640, 360, th.accent, { len: 760, thick: 42, cross: true, dur: 0.36 });
-      FX.sparks(640, 360, th.accent, 42, 680);
-      FX.speedlines("#ffffff", 0.36, 40, 0.55);
-      impactFlash(th.glow, 0.9, 340);
-      cameraShake(22, 460);
-      impactFx(inst);
-      timers.push(setTimeout(() => {
-        if(finished) return;
-        stage2.animate([
-          { transform: "scale(1)", opacity: 1 },
-          { transform: "scale(1.18)", opacity: 0 }
-        ], { duration: 360, easing: "cubic-bezier(.3,.7,.4,1)", fill: "forwards" });
-      }, 110));
-      timers.push(setTimeout(finishAll, 500));
+    /* Native HTTP Range streaming: instant seek to second half without downloading whole 10MB file */
+    const fullSrc = new URL(d.video, location.href).href;
+    if(lv.src !== fullSrc){ _warmedVid = d.video; lv.src = d.video; }
+    const seekHalf = () => {
+      if(finished) return;
+      if(lv.duration && isFinite(lv.duration)){
+        const targetT = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio);
+        if(Math.abs((lv.currentTime || 0) - targetT) > 0.12){
+          try{ lv.currentTime = targetT; }catch(e){}
+        }
+      }
     };
-    const revealFullscreenBreakout = () => {
-      if(finished || phase2Fired) return; phase2Fired = true;
-      skipHint.textContent = "点击任意处跳过";
+    if(lv.readyState >= 1) seekHalf(); else lv.addEventListener("loadedmetadata", seekHalf, { once: true });
+    /* Phase 1: Card zoom & energy crack buildup (0 -> 420ms) */
+    wrap.animate([
+      { transform: "scale(.85) translateY(60px)", opacity: 0 },
+      { transform: "scale(1.55) translateY(0) rotate(-1.5deg)", opacity: 1, offset: 0.45 },
+      { transform: "scale(1.62) translate(-4px,2px) rotate(1.5deg)", opacity: 1, offset: 0.72 },
+      { transform: "scale(1.58) translate(4px,-2px) rotate(-1deg)", opacity: 1 }
+    ], { duration: 420, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
+    crack.animate([{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "scale(1.15)" }], { duration: 410, fill: "forwards" });
+    FX.sparks(640, 360, th.accent, 18, 240, { g: -80 });
+    /* Phase 2: Deterministic break-out at 420ms — ZERO stall, ZERO black screen */
+    timers.push(setTimeout(() => {
+      if(finished) return;
       const p = stagePos(wrap.getBoundingClientRect());
       SFX.legendaryBreakout();
       burstAt(p.x, p.y, th.elFx);
@@ -1639,33 +1631,25 @@ function showLegendaryMoment(inst, done){
       timers.push(setTimeout(() => { wrap.style.visibility = "hidden"; }, 245));
       /* Full-bleed borderless 3D breakout expanding seamlessly from shattered card */
       stage2.classList.add("on");
-      cancelAnims(stage2);
+      cancelAnims(stage2, lp, lv);
       stage2.animate([
         { clipPath: "circle(14% at 50% 50%)", opacity: 0.92 },
         { clipPath: "circle(112% at 50% 50%)", opacity: 1 }
       ], { duration: 340, easing: "cubic-bezier(.16,.88,.24,1)", fill: "forwards" });
-      /* Start 3D camera push-in and wait until REAL video frames play ~2.1s */
-      let playbackStarted = false;
-      const onRealPlayback = () => {
-        if(finished || playbackStarted) return; playbackStarted = true;
-        startT = lv.currentTime || startT;
-        cancelAnims(lv);
-        lv.animate([
-          { transform: "scale(1.06)", filter: "brightness(1.45) contrast(1.1)" },
-          { transform: "scale(1.0)",  filter: "brightness(1.04) contrast(1.05)", offset: 0.22 },
-          { transform: "scale(1.14)", filter: "brightness(1.12) contrast(1.08)" }
-        ], { duration: 2150, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
-        timers.push(setTimeout(triggerClimax, 2200));
-      };
-      onTimeUpdate = () => {
-        if(!playbackStarted && lv.currentTime > startT + 0.04) onRealPlayback();
-        if(playbackStarted && lv.currentTime >= startT + 2.1) triggerClimax();
-      };
-      lv.addEventListener("timeupdate", onTimeUpdate);
-      lv.addEventListener("playing", onRealPlayback, { once: true });
-      lv.play().catch(() => { onRealPlayback(); });
-      /* Safety ceiling in case video cannot advance (e.g. offline/blocked) */
-      timers.push(setTimeout(() => { if(!playbackStarted) onRealPlayback(); }, 3500));
+      /* Smooth 3D push-in on BOTH HD poster backdrop and HD video so there is never a black frame */
+      const pushFrames = [
+        { transform: "scale(1.06)", filter: "brightness(1.45) contrast(1.1)" },
+        { transform: "scale(1.0)",  filter: "brightness(1.04) contrast(1.05)", offset: 0.22 },
+        { transform: "scale(1.15)", filter: "brightness(1.12) contrast(1.08)" }
+      ];
+      lp.animate(pushFrames, { duration: 2150, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
+      lv.animate(pushFrames, { duration: 2150, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
+      const markReady = () => { if(!finished) lv.classList.add("ready"); };
+      if(lv.readyState >= 2) markReady();
+      lv.addEventListener("playing", markReady, { once: true });
+      lv.addEventListener("timeupdate", markReady, { once: true });
+      seekHalf();
+      lv.play().then(markReady).catch(() => {});
       /* Sleek cinematic hero nameplate (bottom-left, unobstructed face) */
       timers.push(setTimeout(() => {
         if(finished) return;
@@ -1675,44 +1659,30 @@ function showLegendaryMoment(inst, done){
           { opacity: 1, transform: "translateX(0)", offset: 0.16 },
           { opacity: 1, transform: "translateX(0)", offset: 0.84 },
           { opacity: 0, transform: "translateX(16px)" }
-        ], { duration: 1950, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
+        ], { duration: 1900, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
       }, 120));
-    };
-    const tryReveal = () => { if(phase1Done && videoSeeked) revealFullscreenBreakout(); };
-    /* Phase 1: Card zoom & energy crack buildup (0 -> 430ms) */
-    wrap.animate([
-      { transform: "scale(.85) translateY(60px)", opacity: 0 },
-      { transform: "scale(1.55) translateY(0) rotate(-1.5deg)", opacity: 1, offset: 0.45 },
-      { transform: "scale(1.62) translate(-4px,2px) rotate(1.5deg)", opacity: 1, offset: 0.72 },
-      { transform: "scale(1.58) translate(4px,-2px) rotate(-1deg)", opacity: 1 }
-    ], { duration: 430, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
-    crack.animate([{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "scale(1.15)" }], { duration: 420, fill: "forwards" });
-    FX.sparks(640, 360, th.accent, 18, 240, { g: -80 });
+    }, 420));
+    /* Phase 3: Climax strike + 110ms hit-stop + seamless dissolve into battlefield */
     timers.push(setTimeout(() => {
-      phase1Done = true;
-      if(videoSeeked) revealFullscreenBreakout();
-      else skipHint.textContent = "高清破图视频聚能加载中…（点击可跳过）";
-    }, 430));
-    /* Load from in-memory Blob cache (instant!) or fetch cleanly first */
-    fetchVideoBlob(d.video).then(resolvedUrl => {
       if(finished) return;
-      const targetSrc = resolvedUrl.startsWith("blob:") ? resolvedUrl : new URL(resolvedUrl, location.href).href;
-      if(lv.src !== targetSrc) lv.src = targetSrc;
-      const seekToBreakout = () => {
+      try{ lv.pause(); }catch(e){}
+      SFX.legendaryImpact();
+      FX.slash(640, 360, th.accent, { len: 760, thick: 42, cross: true, dur: 0.36 });
+      FX.sparks(640, 360, th.accent, 42, 680);
+      FX.speedlines("#ffffff", 0.36, 40, 0.55);
+      impactFlash(th.glow, 0.9, 340);
+      cameraShake(22, 460);
+      impactFx(inst);
+      timers.push(setTimeout(() => {
         if(finished) return;
-        if(lv.duration && isFinite(lv.duration)){
-          startT = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio);
-          if(Math.abs((lv.currentTime || 0) - startT) < 0.08){ videoSeeked = true; tryReveal(); return; }
-          const onSeeked = () => { videoSeeked = true; tryReveal(); };
-          lv.addEventListener("seeked", onSeeked, { once: true });
-          try{ lv.currentTime = startT; }catch(e){ videoSeeked = true; tryReveal(); }
-          timers.push(setTimeout(() => { if(!videoSeeked){ videoSeeked = true; tryReveal(); } }, 650));
-        } else { videoSeeked = true; tryReveal(); }
-      };
-      if(lv.readyState >= 1) seekToBreakout(); else lv.addEventListener("loadedmetadata", seekToBreakout, { once: true });
-    });
-    /* Hard network fallback (10s max) so it can never hang forever */
-    timers.push(setTimeout(() => { if(!phase2Fired) revealFullscreenBreakout(); }, 10000));
+        stage2.animate([
+          { transform: "scale(1)", opacity: 1 },
+          { transform: "scale(1.18)", opacity: 0 }
+        ], { duration: 360, easing: "cubic-bezier(.3,.7,.4,1)", fill: "forwards" });
+      }, 110));
+    }, 2480));
+    /* Hard deterministic finish — guaranteed never to stall */
+    timers.push(setTimeout(finishAll, 2980));
   } else if(d.poster){
     ch.src = d.poster;
     timers.push(setTimeout(() => { if(finished) return;
