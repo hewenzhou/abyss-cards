@@ -1186,9 +1186,14 @@ function cardEl(inst, opts = {}){
     <div class="frame"><div class="art">${art}</div>
     <div class="cname">${d.name}${inst.up ? "+" : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
     <div class="ctext">${cardText(inst)}</div><div class="rgem"></div></div>`;
-  /* Raw MP4s contain an audio track; browsers block innerHTML autoplay unless muted=true + play() is set in JS */
+  /* Raw MP4s contain an audio track; browsers block innerHTML autoplay unless muted=true + play() is triggered after DOM attach */
   const vid = el.querySelector("video");
-  if(vid){ vid.muted = true; vid.defaultMuted = true; vid.playsInline = true; try{ vid.play().catch(() => {}); }catch(e){} }
+  if(vid){
+    vid.muted = true; vid.defaultMuted = true; vid.playsInline = true;
+    const tryPlay = () => { if(vid.isConnected && vid.paused) try{ vid.play().catch(() => {}); }catch(e){} };
+    requestAnimationFrame(tryPlay);
+    vid.addEventListener("loadeddata", tryPlay, { once: true });
+  }
   return el;
 }
 function deckGridInto(container, pickable, onPick){
