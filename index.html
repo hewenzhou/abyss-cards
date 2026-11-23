@@ -757,29 +757,30 @@ function hurtVignette(){
   $("hurtvignette").animate([{ opacity: 0.92 }, { opacity: 0 }], { duration: 420, easing: "ease-out" });
 }
 const HERO_THEME = {
-  hero:       { accent:"#5eead4", glow:"rgba(94,234,212,.85)",  startRatio:0.48, objPos:"center 20%", elFx:"slash" },
-  phoenix:    { accent:"#ff9447", glow:"rgba(255,120,40,.9)",  startRatio:0.48, objPos:"center 22%", elFx:"fire" },
-  angel:      { accent:"#ffe28a", glow:"rgba(255,215,105,.9)", startRatio:0.48, objPos:"center 20%", elFx:"heal" },
-  ignis:      { accent:"#ff5c38", glow:"rgba(255,75,35,.92)",  startRatio:0.48, objPos:"center 24%", elFx:"fire" },
-  babydragon: { accent:"#c084fc", glow:"rgba(168,85,247,.9)",  startRatio:0.46, objPos:"center center", elFx:"bolt" },
-  valkyrie:   { accent:"#5cd6ff", glow:"rgba(56,189,248,.92)", startRatio:0.48, objPos:"center 20%", elFx:"bolt" },
-  assassin:   { accent:"#fb7185", glow:"rgba(244,63,94,.9)",   startRatio:0.48, objPos:"center 22%", elFx:"slash" },
-  priestess:  { accent:"#93c5fd", glow:"rgba(147,197,253,.9)", startRatio:0.48, objPos:"center 20%", elFx:"heal" }
+  /* startSec aligned to exact H.264 I-frame (keyframe) timestamps for instant zero-lag decode */
+  hero:       { accent:"#5eead4", glow:"rgba(94,234,212,.85)",  startSec:4.0,  objPos:"center 20%", elFx:"slash" },
+  phoenix:    { accent:"#ff9447", glow:"rgba(255,120,40,.9)",  startSec:6.04, objPos:"center 22%", elFx:"fire" },
+  angel:      { accent:"#ffe28a", glow:"rgba(255,215,105,.9)", startSec:0.0,  objPos:"center 20%", elFx:"heal" },
+  ignis:      { accent:"#ff5c38", glow:"rgba(255,75,35,.92)",  startSec:5.12, objPos:"center 24%", elFx:"fire" },
+  babydragon: { accent:"#c084fc", glow:"rgba(168,85,247,.9)",  startSec:7.42, objPos:"center center", elFx:"bolt" },
+  valkyrie:   { accent:"#5cd6ff", glow:"rgba(56,189,248,.92)", startSec:1.29, objPos:"center 20%", elFx:"bolt" },
+  assassin:   { accent:"#fb7185", glow:"rgba(244,63,94,.9)",   startSec:5.0,  objPos:"center 22%", elFx:"slash" },
+  priestess:  { accent:"#93c5fd", glow:"rgba(147,197,253,.9)", startSec:0.0,  objPos:"center 20%", elFx:"heal" }
 };
 let _warmedVid = "";
 function warmLegendaryVideo(id, fromGesture = false){
   const d = CARDS[id]; if(!d || !d.video) return;
   const lm = $("legmoment"); if(lm && lm.classList.contains("on")) return;
   const lv = $("legvideo"); if(!lv) return;
-  const th = HERO_THEME[id] || { startRatio: 0.48 };
-  lv.muted = true;
+  const th = HERO_THEME[id] || { startSec: 0 };
+  lv.muted = true; lv.defaultMuted = true; lv.playsInline = true;
   if(_warmedVid !== d.video){
     _warmedVid = d.video;
     lv.poster = d.poster || "";
     lv.src = d.video;
     const doSeek = () => {
-      if(lv.duration && isFinite(lv.duration)){
-        try{ lv.currentTime = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio); }catch(e){}
+      if(lv.duration && isFinite(lv.duration) && th.startSec > 0){
+        try{ lv.currentTime = Math.min(Math.max(0, lv.duration - 2.4), th.startSec); }catch(e){}
       }
     };
     if(lv.readyState >= 1) doSeek(); else lv.addEventListener("loadedmetadata", doSeek, { once: true });
@@ -1174,8 +1175,9 @@ $("deckbtn").addEventListener("click", ()=>{ if(R) openDeckView(); });
 $("deckclose").addEventListener("click", closePanels);
 function cardEl(inst, opts = {}){
   const d = CARDS[inst.id];
-  const art = d.video
-    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline webkit-playsinline="true" x5-playsinline="true" x5-video-player-type="h5" preload="metadata"></video><span class="dyn">▶ 动态卡面</span>`
+  const art = (d.video && !opts.staticArt)
+    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline webkit-playsinline="true" x5-playsinline="true" x5-video-player-type="h5" preload="auto"></video><span class="dyn">▶ 动态卡面</span>`
+    : (d.video && opts.staticArt) ? `<img src="${d.poster}" alt=""><span class="dyn">▶ 动态卡面</span>`
     : d.art ? `<img src="${d.art}" alt="">`
     : `<div style="position:absolute;inset:0;background:${d.grad}"></div><span class="glyph">${d.glyph}</span>`;
   const el = document.createElement("div");
@@ -1184,6 +1186,9 @@ function cardEl(inst, opts = {}){
     <div class="frame"><div class="art">${art}</div>
     <div class="cname">${d.name}${inst.up ? "+" : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
     <div class="ctext">${cardText(inst)}</div><div class="rgem"></div></div>`;
+  /* Raw MP4s contain an audio track; browsers block innerHTML autoplay unless muted=true + play() is set in JS */
+  const vid = el.querySelector("video");
+  if(vid){ vid.muted = true; vid.defaultMuted = true; vid.playsInline = true; try{ vid.play().catch(() => {}); }catch(e){} }
   return el;
 }
 function deckGridInto(container, pickable, onPick){
@@ -1554,15 +1559,15 @@ function showLegendaryMoment(inst, done){
   const titleBox = $("legtitle"), skipHint = $("legskip");
   cancelAnims(wrap, crack, stage2, lv, titleBox, ch);
   const d = CARDS[inst.id];
-  const th = HERO_THEME[inst.id] || { accent:"#ffe299", glow:"rgba(255,200,90,.85)", startRatio:0.48, objPos:"center 22%", elFx:"bolt" };
+  const th = HERO_THEME[inst.id] || { accent:"#ffe299", glow:"rgba(255,200,90,.85)", startSec:0, objPos:"center 22%", elFx:"bolt" };
   lm.style.setProperty("--leg-accent", th.accent);
   lm.style.setProperty("--leg-glow", th.glow);
   $("legname").textContent = d.name;
   $("legbond").textContent = d.bond ? `💞 羁绊 · ${d.bond}` : "";
   skipHint.textContent = "点击任意处跳过";
-  /* rebuild card inside wrap while keeping #legcrack */
+  /* rebuild card inside wrap while keeping #legcrack (staticArt avoids duplicate competing video download) */
   wrap.innerHTML = "";
-  wrap.appendChild(cardEl(inst, { big: true }));
+  wrap.appendChild(cardEl(inst, { big: true, staticArt: true }));
   wrap.appendChild(crack);
   wrap.style.visibility = ""; wrap.style.opacity = "1"; wrap.style.transform = "scale(1.55)";
   crack.style.opacity = "0";
@@ -1570,7 +1575,7 @@ function showLegendaryMoment(inst, done){
   titleBox.style.opacity = 0;
   stage2.classList.remove("on");
   stage2.style.opacity = ""; stage2.style.transform = "scale(1)";
-  lv.muted = true;
+  lv.muted = true; lv.defaultMuted = true; lv.playsInline = true;
   lv.poster = d.poster || "";
   lv.style.objectPosition = th.objPos;
   lv.style.transform = "scale(1)"; lv.style.filter = "brightness(1)";
@@ -1598,8 +1603,8 @@ function showLegendaryMoment(inst, done){
     if(lv.src !== fullSrc){ _warmedVid = d.video; lv.src = d.video; }
     const seekHalf = () => {
       if(finished) return;
-      if(lv.duration && isFinite(lv.duration)){
-        const targetT = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio);
+      if(lv.duration && isFinite(lv.duration) && th.startSec > 0){
+        const targetT = Math.min(Math.max(0, lv.duration - 2.4), th.startSec);
         try{ lv.currentTime = targetT; }catch(e){}
       }
     };
