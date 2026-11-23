@@ -914,6 +914,7 @@ const SFX = (() => {
   let bgmGain = null, bgmTimer = null, bgmStep = 0;
   const BGM_CHORDS = [[110, 164.81, 220, 261.63], [87.31, 130.81, 174.61, 220], [98, 146.83, 196, 246.94], [82.41, 123.47, 164.81, 196]];
   function bgmChord(freqs, dur){
+    if(window.__realBgm){ if(bgmTimer){ clearInterval(bgmTimer); bgmTimer = null; } return; }
     const c = ensure(); if(!c || !bgmGain) return;
     const t = c.currentTime;
     freqs.forEach((f, i) => {
@@ -938,7 +939,7 @@ const SFX = (() => {
     }); }
   }
   function startBgm(){
-    const c = ensure(); if(!c || bgmTimer) return;
+    const c = ensure(); if(!c || bgmTimer || window.__realBgm) return;
     bgmGain = c.createGain(); bgmGain.gain.value = muted ? 0 : 0.9; bgmGain.connect(master || c.destination);
     const step = () => { bgmChord(BGM_CHORDS[bgmStep % BGM_CHORDS.length], 7.5); bgmStep++; };
     step(); bgmTimer = setInterval(step, 7000);
@@ -963,9 +964,9 @@ const SFX = (() => {
       else if(el === "影" || el === "血"){ tone(180, 58, 0.25, "sawtooth", 0.13); noise(0.18, 820, 1.4, 0.14); }
     },
     reaction(){ tone(440, 880, 0.18, "triangle", 0.18); tone(660, 1320, 0.24, "sine", 0.16, 0.05); noise(0.22, 2600, 1.1, 0.2, 0.02); },
-    shieldBreak(){ tone(160, 42, 0.32, "sawtooth", 0.28); tone(1120, 480, 0.22, "triangle", 0.16); noise(0.26, 3600, 1.3, 0.28); },
+    shieldBreak(){ if(playCustom("shieldBreak")) return; tone(160, 42, 0.32, "sawtooth", 0.28); tone(1120, 480, 0.22, "triangle", 0.16); noise(0.26, 3600, 1.3, 0.28); },
     furyBurst(){ tone(120, 480, 0.35, "sawtooth", 0.2); tone(523, 1046, 0.36, "triangle", 0.18, 0.06); tone(784, 1568, 0.42, "sine", 0.16, 0.12); noise(0.32, 2200, 0.9, 0.22, 0.04); },
-    potion(){ tone(580, 920, 0.14, "sine", 0.12); tone(880, 1260, 0.18, "triangle", 0.11, 0.06); },
+    potion(){ if(playCustom("potion")) return; tone(580, 920, 0.14, "sine", 0.12); tone(880, 1260, 0.18, "triangle", 0.11, 0.06); },
     block(){ if(playCustom("block")) return; tone(420, 620, 0.12, "triangle", 0.12); tone(840, 1120, 0.18, "sine", 0.09, 0.03); },
     blockAbsorb(){ if(playCustom("blockAbsorb")) return; tone(540, 310, 0.16, "triangle", 0.18); tone(1080, 740, 0.14, "sine", 0.1, 0.01); noise(0.09, 2600, 2.4, 0.14); },
     heal(){ if(playCustom("heal")) return; tone(523, 659, 0.18, "sine", 0.11); tone(659, 784, 0.24, "sine", 0.11, 0.07); tone(784, 1046, 0.3, "sine", 0.09, 0.14); },
@@ -980,12 +981,27 @@ const SFX = (() => {
     victory(){ if(playCustom("victory")) return; [523, 659, 784, 1046].forEach((f, i) => tone(f, f * 1.01, 0.28, "triangle", 0.11, i * 0.09)); },
     defeat(){ if(playCustom("defeat")) return; [294, 261, 220, 164].forEach((f, i) => tone(f, f * 0.96, 0.35, "sawtooth", 0.09, i * 0.12)); },
     coin(){ if(playCustom("coin")) return; tone(988, 1318, 0.12, "sine", 0.09); tone(1318, 1568, 0.16, "sine", 0.08, 0.06); },
-    click(){ tone(520, 380, 0.04, "triangle", 0.05); }
+    click(){ if(playCustom("click")) return; tone(520, 380, 0.04, "triangle", 0.05); }
   };
   addEventListener("pointerdown", () => { ensure(); startBgm(); }, { once: true });
   return api;
 })();
 $("sfxbtn").addEventListener("click", () => { SFX.toggle(); SFX.click(); });
+
+/* ================= 真实音频素材（CC0） =================
+   音效：Kenney 音效包（kenney.nl，CC0）；BGM：Dark Cavern Ambient — Paul Wortmann（OpenGameArt，CC0） */
+[["hitLight","hit-light"],["hitHeavy","hit-heavy"],["hitCrit","hit-crit"],["playerHit","player-hit"],["shieldBreak","shield-break"],["block","block"],["blockAbsorb","block-absorb"],["cardPlay","card-play"],["cardHover","card-hover"],["click","click"],["coin","coin"],["potion","potion"],["heal","heal"],["buff","buff"],["victory","victory"],["defeat","defeat"],["bossEntrance","boss"],["legendaryImpact","legendary-impact"]].forEach(([n, f]) => SFX.override(n, `assets/audio/${f}.mp3`));
+let realBgm = null;
+function startRealBgm(){
+  if(realBgm) return;
+  realBgm = new Audio("assets/audio/bgm-cavern.mp3");
+  realBgm.loop = true; realBgm.volume = 0.5;
+  const p = realBgm.play();
+  if(p) p.then(() => { window.__realBgm = true; }).catch(() => { realBgm = null; });
+}
+window.addEventListener("pointerdown", () => setTimeout(startRealBgm, 80), { once: true });
+const _sfxToggleOrig = SFX.toggle;
+SFX.toggle = function(){ const on = _sfxToggleOrig(); if(realBgm) realBgm.volume = on ? 0.5 : 0; return on; };
 
 /* ================= AMBIENT ATMOSPHERE PARTICLES ================= */
 (() => {
@@ -1472,6 +1488,13 @@ const RELICS = {
 };
 const hasRelic = id => R && R.relics.includes(id);
 
+/* ================= 锻造觉醒形态（英雄卡强化后换新形象 + 新破图视频） ================= */
+const EVOLVED_MEDIA = {
+  hero:      { video: "assets/evolved-hero.mp4", poster: "assets/evolved-hero.webp" },
+  assassin:  { video: "assets/evolved-assassin.mp4", poster: "assets/evolved-assassin.webp" },
+  priestess: { video: "assets/evolved-priestess.mp4", poster: "assets/evolved-priestess.webp" }
+};
+
 /* ================= BOSS 登场台词（英文，配合语音朗读） ================= */
 const BOSS_LINES = {
   1: "I was a king before the void ate my crown. It is still hungry.",
@@ -1500,14 +1523,14 @@ function bossSpeak(text){
 
 /* ================= 职业（主角） ================= */
 const CLASSES = {
-  swordsman: { name:"苍流", title:"银发剑姬 · 剑士", img:"assets/hero.webp", video:"assets/hero-breakout.mp4", card:"hero", hp:88,
-    desc:"攻守兼备的深渊剑士，剑域为她而开。初始牌组均衡，生命更高。", passive:"生命上限 88",
-    skillName:"剑域解放", skillDesc:"对敌人造成 26 点伤害", skillCd:5 },
-  assassin: { name:"绯", title:"影舞刺客 · 刺客", img:"assets/assassin.webp", video:"assets/assassin-breakout.mp4", card:"assassin", hp:76,
-    desc:"来去如电的影舞刺客，出手即绝杀。生命较低，但职业技能冷却最短。", passive:"技能冷却仅 3 回合",
-    skillName:"雷霆绝杀", skillDesc:"造成 20 点伤害并获得 1 点能量", skillCd:3 },
-  priestess: { name:"塞拉", title:"月光祭司 · 祭司", img:"assets/priestess.webp", video:"assets/priestess-breakout.mp4", card:"priestess", hp:80,
-    desc:"聆听月光的祭司，治愈与守护见长。在休息点的回复量额外提升。", passive:"休整回复 +15%",
+  swordsman: { name:"凯尔", title:"霜刃骑士 · 剑士", img:"assets/class-swordsman.webp", video:"assets/class-swordsman-skill.mp4", card:"hero", hp:88,
+    desc:"北境霜刃骑士，攻守兼备。初始牌组均衡，生命更高。", passive:"生命上限 88",
+    skillName:"霜刃裂空", skillDesc:"对敌人造成 26 点伤害", skillCd:5 },
+  assassin: { name:"夜莺", title:"绯影刺客 · 刺客", img:"assets/class-assassin.webp", video:"assets/class-assassin-skill.mp4", card:"assassin", hp:76,
+    desc:"戴着深红兜帽的绯影刺客，出手即绝杀。生命较低，但职业技能冷却最短。", passive:"技能冷却仅 3 回合",
+    skillName:"绯影绝杀", skillDesc:"造成 20 点伤害并获得 1 点能量", skillCd:3 },
+  priestess: { name:"奥蕾莉亚", title:"月光祭司 · 祭司", img:"assets/class-priestess.webp", video:"assets/class-priestess-skill.mp4", card:"priestess", hp:80,
+    desc:"聆听月光的金发祭司，治愈与守护见长。在休息点的回复量额外提升。", passive:"休整回复 +15%",
     skillName:"月光祷言", skillDesc:"回复 16 点生命并获得 12 点格挡", skillCd:4 }
 };
 
@@ -1808,23 +1831,24 @@ function attachCard3DTilt(el){
 
 function cardEl(inst, opts = {}){
   const d = CARDS[inst.id];
+  const media = (inst.up && EVOLVED_MEDIA[inst.id]) || d;
   const fxCls = EL_FX_CLASS[d.el] || "fx-iron";
   const isSpecial = d.rarity === "rare" || d.rarity === "legendary" || d.fused;
-  const fxOverlay = (!d.video && isSpecial)
+  const fxOverlay = (!media.video && isSpecial)
     ? `<div class="art-fx ${fxCls}${d.fused ? " fx-fused" : ""}"></div>` : "";
-  const badge = d.video ? ""
+  const badge = media.video ? ""
     : d.fused ? `<span class="dyn fusebadge">⚗️ 融合</span>`
     : d.rarity === "rare" ? `<span class="dyn rarebadge">✦ 稀有</span>` : "";
-  const art = (d.video && !opts.staticArt)
-    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline webkit-playsinline="true" x5-playsinline="true" x5-video-player-type="h5" preload="auto"></video>${badge}`
-    : (d.video && opts.staticArt) ? `<img src="${d.poster}" alt="">${badge}`
+  const art = (media.video && !opts.staticArt)
+    ? `<video src="${media.video}" poster="${media.poster}" autoplay loop muted playsinline webkit-playsinline="true" x5-playsinline="true" x5-video-player-type="h5" preload="auto"></video>${badge}`
+    : (media.video && opts.staticArt) ? `<img src="${media.poster}" alt="">${badge}`
     : d.art ? `<img src="${d.art}" alt="">${fxOverlay}${badge}`
     : `<div style="position:absolute;inset:0;background:${d.grad}"></div>${fxOverlay}<span class="glyph">${d.glyph}</span>${badge}`;
   const el = document.createElement("div");
   el.className = "card " + d.rarity + (d.fused ? " fused" : "") + (inst.up ? " upgraded" : "") + (opts.big ? " big" : "");
   el.innerHTML = `${inst.up ? '<div class="uptag">强化 +</div>' : ""}<div class="cost">${d.cost}</div>
     <div class="frame"><div class="foil"></div><div class="art">${art}</div>
-    <div class="cname">${d.name}${inst.up ? "+" : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.fused ? "FUSED" : d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
+    <div class="cname">${d.name}${inst.up ? (EVOLVED_MEDIA[inst.id] ? " · 觉醒" : "+") : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.fused ? "FUSED" : d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
     <div class="ctext">${cardText(inst)}</div><div class="rgem"></div></div>`;
   attachCard3DTilt(el);
   const vid = el.querySelector("video");
@@ -1941,9 +1965,9 @@ function useSkill(){
     if(!C) return;
     C.busy = false;
     SFX.legendaryImpact();
-    if(R.cls === "assassin"){ dealDamageToEnemy(20, true, false, { heavy: true, tag: "雷霆绝杀！" }); if(C && !C.over) C.energy += 1; }
+    if(R.cls === "assassin"){ dealDamageToEnemy(20, true, false, { heavy: true, tag: "绯影绝杀！" }); if(C && !C.over) C.energy += 1; }
     else if(R.cls === "priestess"){ healPlayer(16); C.pblock += 12; SFX.heal(); burstOn($("player"), "heal"); const pp = stagePos($("player").getBoundingClientRect()); floatNum(pp.x, pp.y - 40, "🌙 月光祷言", "#bcd8ff", { tier: "status" }); }
-    else { dealDamageToEnemy(26, true, false, { heavy: true, tag: "剑域解放！" }); }
+    else { dealDamageToEnemy(26, true, false, { heavy: true, tag: "霜刃裂空！" }); }
     syncCombat(); updateSkillBtn();
   };
   cine.onclick = fire;
@@ -2415,9 +2439,10 @@ function showLegendaryMoment(inst, done){
   const skip = () => { impactFx(inst); finishAll(); };
   lm.addEventListener("click", skip);
   addEventListener("keydown", onKey);
-  if(d.video){
-    const fullSrc = new URL(d.video, location.href).href;
-    if(lv.src !== fullSrc){ _warmedVid = d.video; lv.src = d.video; }
+  const cineVideo = (inst.up && EVOLVED_MEDIA[inst.id]) ? EVOLVED_MEDIA[inst.id].video : d.video;
+  if(cineVideo){
+    const fullSrc = new URL(cineVideo, location.href).href;
+    if(lv.src !== fullSrc){ _warmedVid = cineVideo; lv.src = cineVideo; }
     const seekHalf = () => {
       if(finished) return;
       if(lv.duration && isFinite(lv.duration) && th.startSec > 0){
