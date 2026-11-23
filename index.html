@@ -766,16 +766,32 @@ const HERO_THEME = {
   assassin:   { accent:"#fb7185", glow:"rgba(244,63,94,.9)",   startRatio:0.48, objPos:"center 22%", elFx:"slash" },
   priestess:  { accent:"#93c5fd", glow:"rgba(147,197,253,.9)", startRatio:0.48, objPos:"center 20%", elFx:"heal" }
 };
-const _vidPreload = new Set();
+const VID_CACHE = {}, _vidPending = {};
+function fetchVideoBlob(url){
+  if(!url) return Promise.resolve(url);
+  if(VID_CACHE[url]) return Promise.resolve(VID_CACHE[url]);
+  if(_vidPending[url]) return _vidPending[url];
+  if(location.protocol === "file:") return Promise.resolve(url);
+  _vidPending[url] = fetch(url).then(r => { if(!r.ok) throw new Error(r.status); return r.blob(); }).then(blob => {
+    const objUrl = URL.createObjectURL(blob);
+    VID_CACHE[url] = objUrl;
+    document.querySelectorAll(`img[data-vwait="${url}"]`).forEach(img => {
+      const v = document.createElement("video");
+      v.src = objUrl; v.poster = img.src; v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+      img.replaceWith(v);
+    });
+    return objUrl;
+  }).catch(() => url);
+  return _vidPending[url];
+}
 function preloadLegendaryVideos(list){
   for(const inst of list){
     const d = CARDS[inst.id];
-    if(d && d.video && !_vidPreload.has(d.video)){
-      _vidPreload.add(d.video);
-      const v = document.createElement("video"); v.preload = "auto"; v.muted = true; v.src = d.video; v.load();
-    }
+    if(d && d.video) fetchVideoBlob(d.video);
   }
 }
+/* Warm up starter legendary hero video right on start screen so first cast is instant */
+setTimeout(() => fetchVideoBlob("assets/hero-breakout.mp4"), 250);
 function fit(){ const w = innerWidth, h = innerHeight;
   if(h > w){ window.__rot = 90; window.__scale = Math.min(w / 720, h / 1280); }
   else { window.__rot = 0; window.__scale = Math.min(w / 1280, h / 720); }
@@ -1151,10 +1167,20 @@ $("deckbtn").addEventListener("click", ()=>{ if(R) openDeckView(); });
 $("deckclose").addEventListener("click", closePanels);
 function cardEl(inst, opts = {}){
   const d = CARDS[inst.id];
-  const art = d.video
-    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline></video><span class="dyn">▶ 动态卡面</span>`
-    : d.art ? `<img src="${d.art}" alt="">`
-    : `<div style="position:absolute;inset:0;background:${d.grad}"></div><span class="glyph">${d.glyph}</span>`;
+  let art;
+  if(d.video){
+    const cached = VID_CACHE[d.video];
+    if(cached || location.protocol === "file:"){
+      art = `<video src="${cached || d.video}" poster="${d.poster}" autoplay loop muted playsinline></video><span class="dyn">▶ 动态卡面</span>`;
+    } else {
+      fetchVideoBlob(d.video);
+      art = `<img src="${d.poster}" data-vwait="${d.video}" alt=""><span class="dyn">▶ 动态卡面</span>`;
+    }
+  } else if(d.art){
+    art = `<img src="${d.art}" alt="">`;
+  } else {
+    art = `<div style="position:absolute;inset:0;background:${d.grad}"></div><span class="glyph">${d.glyph}</span>`;
+  }
   const el = document.createElement("div");
   el.className = "card " + d.rarity + (opts.big ? " big" : "");
   el.innerHTML = `${inst.up ? '<div class="uptag">强化 +</div>' : ""}<div class="cost">${d.cost}</div>
@@ -1528,7 +1554,7 @@ function spawnShardsToward(count = 12){
 function showLegendaryMoment(inst, done){
   const lm = $("legmoment"), wrap = $("legcard"), crack = $("legcrack");
   const ch = $("legchar"), stage2 = $("legstage"), lv = $("legvideo");
-  const titleBox = $("legtitle");
+  const titleBox = $("legtitle"), skipHint = $("legskip");
   cancelAnims(wrap, crack, stage2, lv, titleBox, ch);
   const d = CARDS[inst.id];
   const th = HERO_THEME[inst.id] || { accent:"#ffe299", glow:"rgba(255,200,90,.85)", startRatio:0.48, objPos:"center 22%", elFx:"bolt" };
@@ -1536,6 +1562,7 @@ function showLegendaryMoment(inst, done){
   lm.style.setProperty("--leg-glow", th.glow);
   $("legname").textContent = d.name;
   $("legbond").textContent = d.bond ? `💞 羁绊 · ${d.bond}` : "";
+  skipHint.textContent = "点击任意处跳过";
   /* rebuild card inside wrap while keeping #legcrack */
   wrap.innerHTML = "";
   wrap.appendChild(cardEl(inst, { big: true }));
@@ -1552,11 +1579,12 @@ function showLegendaryMoment(inst, done){
   lm.classList.add("on");
   SFX.legendaryCharge();
   const timers = [];
-  let finished = false;
+  let finished = false, onTimeUpdate = null;
   const onKey = e => { if(e.code === "Space" || e.code === "Escape") skip(); };
   const finishAll = () => {
     if(finished) return; finished = true;
     timers.forEach(t => clearTimeout(t));
+    if(onTimeUpdate) lv.removeEventListener("timeupdate", onTimeUpdate);
     cancelAnims(wrap, crack, stage2, lv, titleBox, ch);
     lm.classList.remove("on"); stage2.classList.remove("on");
     try{ lv.pause(); }catch(e){}
@@ -1568,40 +1596,30 @@ function showLegendaryMoment(inst, done){
   lm.addEventListener("click", skip);
   addEventListener("keydown", onKey);
   if(d.video){
-    /* Phase 0: pre-seek to second-half breakout moment BEFORE showing video so frame 0 never flashes */
-    let videoReady = false, phase2Fired = false, climaxScheduled = false;
-    const scheduleClimax = () => {
-      if(finished || climaxScheduled) return; climaxScheduled = true;
-      /* Continuous 3D camera push-in toward viewer during second-half charge */
-      cancelAnims(lv);
-      lv.animate([
-        { transform: "scale(1.06)", filter: "brightness(1.5) contrast(1.12)" },
-        { transform: "scale(1.0)",  filter: "brightness(1.05) contrast(1.05)", offset: 0.22 },
-        { transform: "scale(1.14)", filter: "brightness(1.12) contrast(1.08)" }
-      ], { duration: 2050, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
-      /* Phase 3: Climax strike + 110ms hit-stop + seamless dissolve into battlefield */
+    let phase1Done = false, videoSeeked = false, phase2Fired = false, climaxFired = false, startT = 0;
+    const triggerClimax = () => {
+      if(finished || climaxFired) return; climaxFired = true;
+      if(onTimeUpdate) lv.removeEventListener("timeupdate", onTimeUpdate);
+      try{ lv.pause(); }catch(e){}
+      SFX.legendaryImpact();
+      FX.slash(640, 360, th.accent, { len: 760, thick: 42, cross: true, dur: 0.36 });
+      FX.sparks(640, 360, th.accent, 42, 680);
+      FX.speedlines("#ffffff", 0.36, 40, 0.55);
+      impactFlash(th.glow, 0.9, 340);
+      cameraShake(22, 460);
+      impactFx(inst);
       timers.push(setTimeout(() => {
         if(finished) return;
-        try{ lv.pause(); }catch(e){}
-        SFX.legendaryImpact();
-        FX.slash(640, 360, th.accent, { len: 760, thick: 42, cross: true, dur: 0.36 });
-        FX.sparks(640, 360, th.accent, 42, 680);
-        FX.speedlines("#ffffff", 0.36, 40, 0.55);
-        impactFlash(th.glow, 0.9, 340);
-        cameraShake(22, 460);
-        impactFx(inst);
-        timers.push(setTimeout(() => {
-          if(finished) return;
-          stage2.animate([
-            { transform: "scale(1)", opacity: 1 },
-            { transform: "scale(1.18)", opacity: 0 }
-          ], { duration: 360, easing: "cubic-bezier(.3,.7,.4,1)", fill: "forwards" });
-        }, 110));
-      }, 2020));
-      timers.push(setTimeout(finishAll, 2500));
+        stage2.animate([
+          { transform: "scale(1)", opacity: 1 },
+          { transform: "scale(1.18)", opacity: 0 }
+        ], { duration: 360, easing: "cubic-bezier(.3,.7,.4,1)", fill: "forwards" });
+      }, 110));
+      timers.push(setTimeout(finishAll, 500));
     };
     const revealFullscreenBreakout = () => {
       if(finished || phase2Fired) return; phase2Fired = true;
+      skipHint.textContent = "点击任意处跳过";
       const p = stagePos(wrap.getBoundingClientRect());
       SFX.legendaryBreakout();
       burstAt(p.x, p.y, th.elFx);
@@ -1626,9 +1644,28 @@ function showLegendaryMoment(inst, done){
         { clipPath: "circle(14% at 50% 50%)", opacity: 0.92 },
         { clipPath: "circle(112% at 50% 50%)", opacity: 1 }
       ], { duration: 340, easing: "cubic-bezier(.16,.88,.24,1)", fill: "forwards" });
-      lv.addEventListener("playing", scheduleClimax, { once: true });
-      lv.play().then(scheduleClimax).catch(scheduleClimax);
-      timers.push(setTimeout(scheduleClimax, 700));
+      /* Start 3D camera push-in and wait until REAL video frames play ~2.1s */
+      let playbackStarted = false;
+      const onRealPlayback = () => {
+        if(finished || playbackStarted) return; playbackStarted = true;
+        startT = lv.currentTime || startT;
+        cancelAnims(lv);
+        lv.animate([
+          { transform: "scale(1.06)", filter: "brightness(1.45) contrast(1.1)" },
+          { transform: "scale(1.0)",  filter: "brightness(1.04) contrast(1.05)", offset: 0.22 },
+          { transform: "scale(1.14)", filter: "brightness(1.12) contrast(1.08)" }
+        ], { duration: 2150, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
+        timers.push(setTimeout(triggerClimax, 2200));
+      };
+      onTimeUpdate = () => {
+        if(!playbackStarted && lv.currentTime > startT + 0.04) onRealPlayback();
+        if(playbackStarted && lv.currentTime >= startT + 2.1) triggerClimax();
+      };
+      lv.addEventListener("timeupdate", onTimeUpdate);
+      lv.addEventListener("playing", onRealPlayback, { once: true });
+      lv.play().catch(() => { onRealPlayback(); });
+      /* Safety ceiling in case video cannot advance (e.g. offline/blocked) */
+      timers.push(setTimeout(() => { if(!playbackStarted) onRealPlayback(); }, 3500));
       /* Sleek cinematic hero nameplate (bottom-left, unobstructed face) */
       timers.push(setTimeout(() => {
         if(finished) return;
@@ -1638,10 +1675,11 @@ function showLegendaryMoment(inst, done){
           { opacity: 1, transform: "translateX(0)", offset: 0.16 },
           { opacity: 1, transform: "translateX(0)", offset: 0.84 },
           { opacity: 0, transform: "translateX(16px)" }
-        ], { duration: 1850, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
+        ], { duration: 1950, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
       }, 120));
     };
-    /* Phase 1: Card zoom & energy crack buildup (0 -> 440ms) */
+    const tryReveal = () => { if(phase1Done && videoSeeked) revealFullscreenBreakout(); };
+    /* Phase 1: Card zoom & energy crack buildup (0 -> 430ms) */
     wrap.animate([
       { transform: "scale(.85) translateY(60px)", opacity: 0 },
       { transform: "scale(1.55) translateY(0) rotate(-1.5deg)", opacity: 1, offset: 0.45 },
@@ -1650,26 +1688,29 @@ function showLegendaryMoment(inst, done){
     ], { duration: 430, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
     crack.animate([{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "scale(1.15)" }], { duration: 420, fill: "forwards" });
     FX.sparks(640, 360, th.accent, 18, 240, { g: -80 });
-    const fullSrc = new URL(d.video, location.href).href;
-    if(lv.src !== fullSrc) lv.src = d.video;
-    const seekToBreakout = () => {
-      if(lv.duration && isFinite(lv.duration)){
-        const targetT = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio);
-        const onSeeked = () => { videoReady = true; };
-        lv.addEventListener("seeked", onSeeked, { once: true });
-        try{ lv.currentTime = targetT; }catch(e){ videoReady = true; }
-      } else { videoReady = true; }
-    };
-    if(lv.readyState >= 1) seekToBreakout(); else lv.addEventListener("loadedmetadata", seekToBreakout, { once: true });
     timers.push(setTimeout(() => {
-      if(finished) return;
-      if(videoReady && lv.readyState >= 2) revealFullscreenBreakout();
-      else {
-        lv.addEventListener("canplay", revealFullscreenBreakout, { once: true });
-        lv.addEventListener("seeked", revealFullscreenBreakout, { once: true });
-        timers.push(setTimeout(revealFullscreenBreakout, 1100));
-      }
+      phase1Done = true;
+      if(videoSeeked) revealFullscreenBreakout();
+      else skipHint.textContent = "高清破图视频聚能加载中…（点击可跳过）";
     }, 430));
+    /* Load from in-memory Blob cache (instant!) or fetch cleanly first */
+    fetchVideoBlob(d.video).then(resolvedUrl => {
+      if(finished) return;
+      const targetSrc = resolvedUrl.startsWith("blob:") ? resolvedUrl : new URL(resolvedUrl, location.href).href;
+      if(lv.src !== targetSrc) lv.src = targetSrc;
+      const seekToBreakout = () => {
+        if(finished) return;
+        if(lv.duration && isFinite(lv.duration)){
+          startT = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio);
+          const onSeeked = () => { videoSeeked = true; tryReveal(); };
+          lv.addEventListener("seeked", onSeeked, { once: true });
+          try{ lv.currentTime = startT; }catch(e){ videoSeeked = true; tryReveal(); }
+        } else { videoSeeked = true; tryReveal(); }
+      };
+      if(lv.readyState >= 1) seekToBreakout(); else lv.addEventListener("loadedmetadata", seekToBreakout, { once: true });
+    });
+    /* Hard network fallback (10s max) so it can never hang forever */
+    timers.push(setTimeout(() => { if(!phase2Fired) revealFullscreenBreakout(); }, 10000));
   } else if(d.poster){
     ch.src = d.poster;
     timers.push(setTimeout(() => { if(finished) return;
