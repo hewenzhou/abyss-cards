@@ -171,6 +171,47 @@
   #enemyframe .eimg { position:absolute; inset:0; overflow:hidden; border-radius:inherit; }
   #enemyframe .eimg img { width:100%; height:100%; object-fit:cover; object-position:top center; }
   #enemyframe .eimg video { width:100%; height:100%; object-fit:cover; object-position:top center; display:block; }
+  #introbanner .ib-quote { margin:12px auto 0; max-width:640px; font-size:16.5px; font-style:italic; letter-spacing:1px; line-height:1.55;
+    color:#ffe9b8; font-family:Georgia, "Times New Roman", serif; text-shadow:0 2px 14px rgba(0,0,0,.9), 0 0 26px rgba(255,120,50,.35); }
+  #skillbtn { position:absolute; left:34px; bottom:184px; z-index:8; display:flex; align-items:center; gap:8px;
+    padding:8px 16px 8px 12px; border-radius:999px; cursor:pointer;
+    background:linear-gradient(180deg, rgba(38,26,10,.92), rgba(16,10,4,.95));
+    border:1px solid rgba(255,190,90,.45); color:#c9d6dd; font-size:12px; font-weight:800; letter-spacing:.8px; }
+  #skillbtn.ready { color:#fff3cf; border-color:#ffd76a; box-shadow:0 0 18px rgba(255,190,80,.45); animation:resglow 1.15s ease-in-out infinite alternate; }
+  #skillbtn:disabled { opacity:.55; cursor:default; }
+  #skillcine { position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center; background:#000; cursor:pointer; }
+  #skillcine video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  #skillcine .sc-name { position:relative; z-index:2; font-size:44px; font-weight:900; letter-spacing:12px; color:#fff6da;
+    text-shadow:0 4px 0 rgba(60,20,0,.8), 0 0 44px rgba(255,170,60,.9); }
+  .eqgrid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-top:20px; }
+  .eqslot { position:relative; border-radius:14px; padding:14px 10px 12px; text-align:center; min-height:118px;
+    background:linear-gradient(180deg, rgba(24,32,44,.92), rgba(10,14,20,.96)); border:1.5px solid rgba(120,140,160,.28); }
+  .eqslot .eqslot-name { font-size:11px; letter-spacing:3px; color:#8fa3ad; font-weight:800; }
+  .eqslot .eqicon { font-size:40px; line-height:1.15; margin:6px 0 4px; filter:drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+  .eqslot .eqitem-name { font-size:13.5px; font-weight:800; color:#e8f0f4; }
+  .eqslot .eqitem-desc { font-size:11px; color:#9fb4c0; margin-top:3px; line-height:1.45; }
+  .eqslot.empty { opacity:.55; border-style:dashed; }
+  .eqslot.empty .eqicon { font-size:30px; opacity:.5; }
+  .eqslot.filled { cursor:pointer; }
+  .eqslot.t1 { border-color:rgba(150,170,190,.55); } .eqslot.t2 { border-color:rgba(96,184,255,.75); box-shadow:0 0 14px rgba(80,160,255,.25); }
+  .eqslot.t3 { border-color:rgba(255,190,90,.9); box-shadow:0 0 18px rgba(255,180,70,.35); }
+  .questrow { display:flex; align-items:center; gap:14px; text-align:left; padding:13px 16px; margin-top:12px; border-radius:12px;
+    background:linear-gradient(180deg, rgba(24,32,44,.92), rgba(10,14,20,.96)); border:1px solid rgba(120,140,160,.3); }
+  .questrow .qicon { font-size:30px; } .questrow .qname { font-weight:800; font-size:14.5px; color:#eef4f7; }
+  .questrow .qdesc { font-size:12px; color:#9fb4c0; margin-top:2px; }
+  .questrow .qbar { height:7px; border-radius:99px; background:rgba(255,255,255,.09); margin-top:7px; overflow:hidden; width:230px; }
+  .questrow .qfill { height:100%; background:linear-gradient(90deg,#38bdf8,#5eead4); border-radius:99px; }
+  .questrow.done { border-color:rgba(255,215,106,.8); box-shadow:0 0 16px rgba(255,200,80,.25); }
+  .classrow { display:flex; gap:18px; justify-content:center; margin-top:24px; flex-wrap:wrap; }
+  .classcard { width:218px; border-radius:16px; overflow:hidden; cursor:pointer; text-align:center;
+    background:linear-gradient(180deg,#1b2632,#0a0f16); border:1.5px solid rgba(140,160,180,.35); transition:transform .18s, box-shadow .18s, border-color .18s; }
+  .classcard:hover { transform:translateY(-8px) scale(1.03); border-color:#ffd76a; box-shadow:0 18px 40px rgba(0,0,0,.6), 0 0 24px rgba(255,200,90,.35); }
+  .classcard img { width:100%; height:210px; object-fit:cover; object-position:top center; display:block; }
+  .classcard .cc-body { padding:12px 14px 16px; }
+  .classcard .cc-name { font-size:17px; font-weight:900; color:#fff3d0; letter-spacing:2px; }
+  .classcard .cc-title { font-size:11.5px; color:#9fd8cf; letter-spacing:1px; margin-top:2px; }
+  .classcard .cc-desc { font-size:12px; color:#aebfca; line-height:1.55; margin-top:8px; min-height:56px; }
+  .classcard .cc-skill { font-size:12px; color:#ffd76a; font-weight:800; margin-top:6px; }
   #enemyframe .eimg::after { content:""; position:absolute; inset:0;
     background:linear-gradient(180deg, rgba(12,18,32,.08), rgba(4,6,12,.45) 84%); }
   #enemy.shake { animation:eshake .42s; }
@@ -339,8 +380,8 @@
     box-shadow:0 4px 12px rgba(0,0,0,.6), 0 0 12px rgba(20,184,166,.45); }
 
   /* Card Art & Dynamic Special Card-Face Animations */
-  .art { position:relative; height:102px; flex:none; overflow:hidden; background:#090d13; }
-  .art img, .art video { width:100%; height:100%; object-fit:cover; display:block; }
+  .art { position:relative; height:114px; flex:none; overflow:hidden; background:#090d13; }
+  .art img, .art video { width:100%; height:100%; object-fit:cover; object-position:top center; display:block; }
   .art .glyph { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center; font-size:48px;
     text-shadow:0 4px 20px rgba(0,0,0,.78); transition:transform .25s ease; }
   .card.rare .art .glyph, .card.fused .art .glyph { animation:glyphfloat 2.6s ease-in-out infinite; }
@@ -412,7 +453,7 @@
   .fused .rgem { background:#d896ff; box-shadow:0 0 12px rgba(216,150,255,.95); }
   .legendary .rgem { background:#f5cf5e; box-shadow:0 0 12px rgba(245,207,94,.9); }
   .card.big { width:174px; height:252px; cursor:pointer; }
-  .card.big .art { height:124px; } .card.big .cname { font-size:15px; } .card.big .ctext { font-size:11.8px; }
+  .card.big .art { height:150px; } .card.big .cname { font-size:15px; } .card.big .ctext { font-size:11.8px; }
   .card.big:hover { transform:translateY(-14px) scale(1.05) !important; }
 
   #slash { position:absolute; z-index:35; width:320px; height:320px; right:96px; top:92px; pointer-events:none; opacity:0;
@@ -647,11 +688,13 @@
       <span id="bursttxt">剑域 0%</span>
       <span class="bbar"><span class="bfill" id="burstfill"></span></span>
     </button>
+    <button id="skillbtn" style="display:none"><span id="skillicon">✦</span><span id="skilltxt">职业技能</span></button>
     <div id="energy"><b id="energynum">3</b><span>能量</span></div>
     <div id="combochip" style="display:none">连击 ×<b id="combonum">0</b></div>
     <div id="ultbanner"></div>
     <div id="introbanner"></div>
     <div id="ultflash"></div>
+    <div id="skillcine"><video id="skillvid" muted playsinline preload="auto"></video><div class="sc-name" id="skillcinename"></div></div>
     <div class="pile" id="drawpile"><div class="stack"></div>抽牌堆 <b id="drawnum">0</b></div>
     <div class="pile" id="discardpile"><div class="stack"></div>弃牌堆 <b id="discardnum">0</b></div>
     <button id="endturn">结束回合</button>
@@ -666,12 +709,22 @@
       <div class="tchip">❤️ <b id="tb-hp">80/80</b></div>
       <div class="tchip">🪙 <b id="tb-gold">0</b></div>
       <div class="tchip" id="deckbtn">牌组 <b id="tb-deck">11</b></div>
+      <div class="tchip" id="questbtn" style="cursor:pointer">📜 任务 <b id="tb-quest"></b></div>
       <div class="tchip" id="equipbtn">⚔️ 装备</div>
       <div class="tchip" id="sfxbtn" title="开关音效">🔊</div>
     </div>
   </div>
   <div id="relicbar"></div>
   <div id="toast"></div>
+
+  <!-- CLASS SELECT -->
+  <div class="panelwrap" id="panel-class">
+    <div class="panel" style="width:820px">
+      <h2>✦ 选 择 你 的 职 业 ✦</h2>
+      <div class="psub">你就是主角 —— 三位深渊行者，三种命运。职业决定你的立绘、初始传说卡与专属技能</div>
+      <div class="classrow" id="classrow"></div>
+    </div>
+  </div>
 
   <!-- BLESSING (START OF RUN 3-CHOICE) -->
   <div class="panelwrap" id="panel-blessing">
@@ -711,7 +764,7 @@
         <div class="choicebtns" style="margin-top:16px"><span id="fusehint" style="align-self:center;color:#9fb4c0;font-size:13px">已选 0 / 2</span><button class="goldbtn" id="fuseconfirm" disabled>投入熔炉</button></div></div>
       <div id="fusereveal" style="display:none;text-align:center;margin-top:8px">
         <div id="fusereveal-title" style="font-size:17px;font-weight:800;color:#ffd76a;letter-spacing:1px"></div>
-        <div id="fusereveal-card" style="display:flex;justify-content:center;margin:16px 0 6px"></div>
+        <div id="fusereveal-card" style="display:flex;justify-content:center;margin:30px 0 6px"></div>
         <div class="choicebtns" style="justify-content:center"><button class="goldbtn" id="fusereveal-ok">✦ 收入牌组</button></div>
       </div>
     </div>
@@ -756,12 +809,22 @@
     </div>
   </div>
 
+  <!-- QUESTS -->
+  <div class="panelwrap" id="panel-quests">
+    <div class="panel" style="width:640px">
+      <h2>📜 深 渊 委 托</h2>
+      <div class="psub">完成委托领取奖励，领完自动刷新新委托</div>
+      <div id="questlist"></div>
+      <div class="choicebtns"><button class="goldbtn" id="questclose">关闭</button></div>
+    </div>
+  </div>
+
   <!-- EQUIP -->
   <div class="panelwrap" id="panel-equip">
     <div class="panel">
       <h2>⚔️ 装 备</h2>
       <div class="psub">点背包里的装备穿上，点已装备的卸下。装备在战斗中全程生效。</div>
-      <div id="equipslots" style="display:flex;gap:14px;justify-content:center;margin-top:20px;flex-wrap:wrap"></div>
+      <div id="equipslots"></div>
       <div class="psub" style="margin-top:22px">背 包</div>
       <div id="equipbag" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px;min-height:60px"></div>
       <div class="choicebtns"><button class="goldbtn" id="equipclose">关闭</button></div>
@@ -799,11 +862,21 @@ const stageCam = $("stage-cam");
 
 /* ================= PROCEDURAL WEB AUDIO SFX ENGINE ================= */
 const SFX = (() => {
-  let ctx = null, muted = false, noiseBuf = null;
+  let ctx = null, muted = false, noiseBuf = null, master = null, rev = null;
   const customAudio = {};
   function ensure(){
     if(muted) return null;
     if(!ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return null; ctx = new AC(); }
+    if(ctx && !master){
+      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.24;
+      const mg = ctx.createGain(); mg.gain.value = 0.92;
+      comp.connect(mg); mg.connect(ctx.destination); master = comp;
+      rev = ctx.createConvolver();
+      const rlen = Math.floor(ctx.sampleRate * 1.7), rbuf = ctx.createBuffer(2, rlen, ctx.sampleRate);
+      for(let ch = 0; ch < 2; ch++){ const d = rbuf.getChannelData(ch); for(let i = 0; i < rlen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rlen, 2.6); }
+      rev.buffer = rbuf;
+      const rg = ctx.createGain(); rg.gain.value = 0.42; rev.connect(rg); rg.connect(master);
+    }
     if(ctx.state === "suspended") ctx.resume().catch(() => {});
     if(!noiseBuf && ctx){
       const len = Math.floor(ctx.sampleRate * 1.2);
@@ -822,7 +895,7 @@ const SFX = (() => {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(vol, t + Math.min(0.014, dur * 0.2));
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(c.destination);
+    o.connect(g); g.connect(master || c.destination); if(rev) g.connect(rev);
     o.start(t); o.stop(t + dur + 0.02);
   }
   function noise(dur, filterFreq, q = 1.2, vol = 0.14, delay = 0, filterType = "bandpass"){
@@ -834,7 +907,7 @@ const SFX = (() => {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(vol, t + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(flt); flt.connect(g); g.connect(c.destination);
+    src.connect(flt); flt.connect(g); g.connect(master || c.destination); if(rev) g.connect(rev);
     src.start(t); src.stop(t + dur + 0.02);
   }
   /* ---- 程序化暗黑氛围 BGM：低音垫和弦缓慢轮换（Am–F–G–Em），无音频素材 ---- */
@@ -853,10 +926,20 @@ const SFX = (() => {
       o.connect(fl); fl.connect(g); g.connect(bgmGain);
       o.start(t); o.stop(t + dur + 0.1);
     });
+    const sub = c.createOscillator(), sg = c.createGain();
+    sub.type = "sine"; sub.frequency.value = freqs[0] / 2;
+    sg.gain.setValueAtTime(0.0001, t); sg.gain.linearRampToValueAtTime(0.05, t + 1.8); sg.gain.linearRampToValueAtTime(0.0001, t + dur);
+    sub.connect(sg); sg.connect(bgmGain); sub.start(t); sub.stop(t + dur + 0.1);
+    if(bgmStep % 2 === 1){ [0, 2, 1].forEach((ix, k) => {
+      const p = c.createOscillator(), pg = c.createGain(), pt = t + 1.3 + k * 1.45;
+      p.type = "sine"; p.frequency.value = freqs[ix] * 2;
+      pg.gain.setValueAtTime(0.0001, pt); pg.gain.linearRampToValueAtTime(0.015, pt + 0.03); pg.gain.exponentialRampToValueAtTime(0.0001, pt + 1.15);
+      p.connect(pg); pg.connect(bgmGain); p.start(pt); p.stop(pt + 1.25);
+    }); }
   }
   function startBgm(){
     const c = ensure(); if(!c || bgmTimer) return;
-    bgmGain = c.createGain(); bgmGain.gain.value = muted ? 0 : 0.9; bgmGain.connect(c.destination);
+    bgmGain = c.createGain(); bgmGain.gain.value = muted ? 0 : 0.9; bgmGain.connect(master || c.destination);
     const step = () => { bgmChord(BGM_CHORDS[bgmStep % BGM_CHORDS.length], 7.5); bgmStep++; };
     step(); bgmTimer = setInterval(step, 7000);
   }
@@ -867,6 +950,7 @@ const SFX = (() => {
   const api = {
     override(name, url){ customAudio[name] = new Audio(url); },
     toggle(){ muted = !muted; const b = $("sfxbtn"); if(b) b.textContent = muted ? "🔇" : "🔊"; if(bgmGain && ctx) bgmGain.gain.linearRampToValueAtTime(muted ? 0 : 0.9, ctx.currentTime + 0.4); return !muted; },
+    isMuted(){ return muted; },
     cardHover(){ if(playCustom("cardHover")) return; tone(620, 880, 0.045, "triangle", 0.035); },
     cardPlay(){ if(playCustom("cardPlay")) return; noise(0.14, 1400, 0.9, 0.11); tone(260, 520, 0.11, "triangle", 0.07); },
     hitLight(pitch = 1){ if(playCustom("hitLight")) return; noise(0.07, 2600 * pitch, 0.8, 0.2); noise(0.12, 700 * pitch, 0.7, 0.16, 0.005, "lowpass"); tone(150 * pitch, 70, 0.09, "sine", 0.2); },
@@ -1319,11 +1403,22 @@ const EQUIP = {
   bloodstone: { slot:"charm", name:"血石", tier:2, icon:"🔴", afterheal:3, desc:"每场战斗胜利后回复 3 点生命" },
   goldbag:    { slot:"charm", name:"贪婪金袋", tier:2, icon:"👛", goldmul:0.2, desc:"获得的金币 +20%" },
   voidcore:   { slot:"charm", name:"虚空核心", tier:3, icon:"🔮", firstatk:3, desc:"每回合第一张攻击牌伤害 +3" },
+  ironcap:    { slot:"helm", name:"铁头盔", tier:1, icon:"⛑️", blk:1, desc:"卡牌获得的格挡 +1" },
+  ashhelm:    { slot:"helm", name:"灰烬战盔", tier:2, icon:"🪖", thorns:2, desc:"荆棘 +2" },
+  dawnhelm:   { slot:"helm", name:"黎明冠盔", tier:3, icon:"👑", afterheal:4, desc:"每场战斗胜利后回复 4 点生命" },
+  gripgloves: { slot:"gloves", name:"蛮力拳套", tier:1, icon:"🥊", firstatk:2, desc:"每回合第一张攻击牌伤害 +2" },
+  swiftgloves:{ slot:"gloves", name:"疾风手套", tier:2, icon:"🧤", startdraw:1, desc:"战斗开始时多抽 1 张牌" },
+  dragongloves:{ slot:"gloves", name:"龙爪手套", tier:3, icon:"🐲", atk:2, desc:"攻击牌伤害 +2" },
+  swiftboots: { slot:"boots", name:"疾行之靴", tier:1, icon:"🥾", startdraw:1, desc:"战斗开始时多抽 1 张牌" },
+  shadowboots:{ slot:"boots", name:"影步长靴", tier:2, icon:"👢", firstatk:2, desc:"每回合第一张攻击牌伤害 +2" },
+  voidsteps:  { slot:"boots", name:"虚空之径", tier:3, icon:"🌀", goldmul:0.25, desc:"获得的金币 +25%" },
 };
-const SLOT_NAMES = { weapon:"武器", armor:"护甲", charm:"饰品" };
+const SLOT_NAMES = { weapon:"武器", helm:"头盔", armor:"护甲", gloves:"手套", boots:"战靴", charm:"饰品" };
+const SLOT_ICONS = { weapon:"🗡️", helm:"🪖", armor:"🛡️", gloves:"🧤", boots:"🥾", charm:"🔮" };
+const SLOT_ORDER = ["weapon", "helm", "armor", "gloves", "boots", "charm"];
 function equipStats(){ const s = { atk:0, blk:0, thorns:0, startdraw:0, afterheal:0, goldmul:0, firstatk:0, burnhit:0 };
   if(!R) return s;
-  for(const slot of ["weapon","armor","charm"]){ const id = R.equip[slot]; if(!id) continue; const e = EQUIP[id];
+  for(const slot of SLOT_ORDER){ const id = R.equip[slot]; if(!id) continue; const e = EQUIP[id];
     for(const k of Object.keys(s)) if(e[k]) s[k] += e[k]; }
   return s; }
 function randomEquip(maxTier){ const owned = new Set([...Object.values(R.equip), ...R.bag]);
@@ -1376,6 +1471,109 @@ const RELICS = {
   dragonheart:{ icon:"❤️‍🔥", name:"龙心", desc:"获得时：最大生命 +16，并回复 16。（Boss 遗物）" },
 };
 const hasRelic = id => R && R.relics.includes(id);
+
+/* ================= BOSS 登场台词（英文，配合语音朗读） ================= */
+const BOSS_LINES = {
+  1: "I was a king before the void ate my crown. It is still hungry.",
+  2: "Stone does not hurry. Neither does your end.",
+  3: "A thousand heroes climbed down my throat. None climbed back.",
+  4: "The ground burns where I walk. Run, little ember. Run.",
+  5: "I have seen the end of all things. Yours is unremarkable.",
+  6: "You quenched a lesser fire. Mine burns in the heart of the world.",
+  7: "Look into the void, hero. It is wearing your face.",
+  8: "Dragons were ancient when the world was young. I am older.",
+  9: "The sky burned once before. Watch it burn again.",
+  10: "Every scream ends in my throat. Scream, then. Feed me."
+};
+function bossSpeak(text){
+  try{
+    if(!text || (typeof SFX !== "undefined" && SFX.isMuted && SFX.isMuted()) || !window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US"; u.pitch = 0.55; u.rate = 0.88; u.volume = 1;
+    const vs = speechSynthesis.getVoices();
+    const v = vs.find(v => v.lang && v.lang.startsWith("en") && /male|david|daniel|george|christopher/i.test(v.name)) || vs.find(v => v.lang && v.lang.startsWith("en"));
+    if(v) u.voice = v;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ================= 职业（主角） ================= */
+const CLASSES = {
+  swordsman: { name:"苍流", title:"银发剑姬 · 剑士", img:"assets/hero.webp", video:"assets/hero-breakout.mp4", card:"hero", hp:88,
+    desc:"攻守兼备的深渊剑士，剑域为她而开。初始牌组均衡，生命更高。", passive:"生命上限 88",
+    skillName:"剑域解放", skillDesc:"对敌人造成 26 点伤害", skillCd:5 },
+  assassin: { name:"绯", title:"影舞刺客 · 刺客", img:"assets/assassin.webp", video:"assets/assassin-breakout.mp4", card:"assassin", hp:76,
+    desc:"来去如电的影舞刺客，出手即绝杀。生命较低，但职业技能冷却最短。", passive:"技能冷却仅 3 回合",
+    skillName:"雷霆绝杀", skillDesc:"造成 20 点伤害并获得 1 点能量", skillCd:3 },
+  priestess: { name:"塞拉", title:"月光祭司 · 祭司", img:"assets/priestess.webp", video:"assets/priestess-breakout.mp4", card:"priestess", hp:80,
+    desc:"聆听月光的祭司，治愈与守护见长。在休息点的回复量额外提升。", passive:"休整回复 +15%",
+    skillName:"月光祷言", skillDesc:"回复 16 点生命并获得 12 点格挡", skillCd:4 }
+};
+
+/* ================= 任务系统 ================= */
+const QUEST_POOL = [
+  { id:"slayer", icon:"⚔️", name:"屠戮者", metric:"kills", target:8, reward:{ type:"gold", n:60 }, desc:"击杀 8 个敌人" },
+  { id:"veteran", icon:"🎖️", name:"百战之躯", metric:"wins", target:6, reward:{ type:"gold", n:50 }, desc:"赢得 6 场战斗" },
+  { id:"elitehunt", icon:"🔥", name:"精英猎手", metric:"elites", target:2, reward:{ type:"equip" }, desc:"击杀 2 个精英敌人" },
+  { id:"bossslayer", icon:"👑", name:"弑君者", metric:"bosses", target:1, reward:{ type:"relic" }, desc:"击杀 1 个 Boss" },
+  { id:"rich", icon:"💰", name:"财富之路", metric:"gold", target:300, reward:{ type:"healpct", n:0.3 }, desc:"累计获得 300 金币" },
+  { id:"alchemist", icon:"🧪", name:"炼金术士", metric:"potions", target:3, reward:{ type:"potion" }, desc:"使用 3 瓶战术药水" },
+  { id:"fusionmaster", icon:"⚗️", name:"熔炉大师", metric:"fusions", target:1, reward:{ type:"gold", n:80 }, desc:"在熔炉完成 1 次合成" },
+  { id:"smith", icon:"🔨", name:"锻造师", metric:"upgrades", target:2, reward:{ type:"equip" }, desc:"在休息点升级 2 张牌" },
+  { id:"deckbuilder", icon:"🃏", name:"构筑师", metric:"deck", target:18, reward:{ type:"gold", n:60 }, desc:"让牌组达到 18 张" }
+];
+function questDef(id){ return QUEST_POOL.find(q => q.id === id); }
+function questRewardText(q){
+  const r = q.reward;
+  if(r.type === "gold") return `奖励 ${r.n} 金币`;
+  if(r.type === "healpct") return `奖励 回复 ${Math.round(r.n * 100)}% 生命`;
+  if(r.type === "relic") return "奖励 随机遗物";
+  if(r.type === "equip") return "奖励 随机装备";
+  if(r.type === "potion") return "奖励 随机药水";
+  return "";
+}
+function initQuests(){
+  if(!R) return;
+  const pool = shuffle(QUEST_POOL.map(q => q.id));
+  R.quests = pool.slice(0, 3).map(id => ({ id, prog: 0, claimed: false }));
+  if(R.quests.some(q => q.id === "deckbuilder")) questCheckDeck();
+  updateQuestChip();
+}
+function updateQuestChip(){ const b = $("tb-quest"); if(b && R && R.quests) b.textContent = `${R.quests.filter(q => questProg(q) >= questDef(q.id).target).length}/3 可领`; }
+function questProg(q){ const d = questDef(q.id); if(d.metric === "deck") return Math.min(R.deck.length, d.target); return Math.min(q.prog, d.target); }
+function questAdd(metric, n){
+  if(!R || !R.quests) return;
+  let changed = false;
+  R.quests.forEach(q => { const d = questDef(q.id); if(d.metric === metric && q.prog < d.target){ const before = q.prog; q.prog = Math.min(d.target, q.prog + n); if(q.prog >= d.target && before < d.target){ toast(`📜 任务完成：「${d.name}」—— 去任务面板领取奖励！`); SFX.coin(); } changed = true; } });
+  if(changed) updateQuestChip();
+}
+function questCheckDeck(){ if(!R || !R.quests) return; const q = R.quests.find(q => q.id === "deckbuilder"); if(q && R.deck.length >= questDef("deckbuilder").target) updateQuestChip(); }
+function applyQuestReward(q){
+  const d = questDef(q.id), r = d.reward;
+  if(r.type === "gold"){ const g = gainGold(r.n); toast(`📜 「${d.name}」完成，获得 ${g} 金币！`); }
+  else if(r.type === "healpct"){ const h = Math.round(R.maxhp * r.n); healPlayer(h); toast(`📜 「${d.name}」完成，回复 ${h} 点生命！`); }
+  else if(r.type === "relic"){ const got = giveRelic(randomRelic(false)); if(got) toast(`📜 「${d.name}」完成，获得遗物「${got.name}」！`); else { gainGold(40); toast(`📜 「${d.name}」完成，遗物已集满，折算 40 金币！`); } }
+  else if(r.type === "equip"){ const got = giveEquip(randomEquip(3)); if(got) toast(`📜 「${d.name}」完成，获得装备「${got.name}」！`); else { gainGold(40); toast(`📜 「${d.name}」完成，装备已集满，折算 40 金币！`); } }
+  else if(r.type === "potion"){ const got = givePotion(); if(got) toast(`📜 「${d.name}」完成，获得药水「${got.name}」！`); else { gainGold(30); toast(`📜 「${d.name}」完成，药水已满，折算 30 金币！`); } }
+}
+function renderQuests(){
+  const box = $("questlist"); if(!box || !R || !R.quests) return;
+  box.innerHTML = "";
+  R.quests.forEach((q, i) => {
+    const d = questDef(q.id), p = questProg(q), done = p >= d.target;
+    const row = document.createElement("div"); row.className = "questrow" + (done ? " done" : "");
+    row.innerHTML = `<div class="qicon">${d.icon}</div><div style="flex:1"><div class="qname">${d.name}</div><div class="qdesc">${d.desc} · ${questRewardText(d)}</div><div class="qbar"><div class="qfill" style="width:${Math.round(p / d.target * 100)}%"></div></div></div><div style="font-weight:900;color:${done ? "#ffd76a" : "#9fb4c0"}">${p} / ${d.target}</div>`;
+    if(done){ const btn = document.createElement("button"); btn.className = "goldbtn"; btn.textContent = "领取奖励"; btn.addEventListener("click", () => { SFX.coin(); applyQuestReward(q);
+      const used = new Set(R.quests.map(x => x.id)); const next = shuffle(QUEST_POOL.map(x => x.id)).find(id => !used.has(id));
+      if(next) R.quests[i] = { id: next, prog: 0, claimed: false }; else R.quests.splice(i, 1);
+      if(R.quests.some(x => x.id === "deckbuilder")) questCheckDeck();
+      renderQuests(); syncTopbar(); updateQuestChip(); });
+      row.appendChild(btn); }
+    box.appendChild(row);
+  });
+  updateQuestChip();
+}
 
 const ENEMIES = {
   shadow: { name:"影袭者", en:"SHADOW STALKER", img:"assets/enemy-shadow.webp", hp:40, moves:[ {t:"atk", v:6}, {t:"atk", v:6}, {t:"atk", v:11} ] },
@@ -1530,6 +1728,22 @@ function nodeCleared(){
   }
   showScreen("map"); renderMap(); syncTopbar();
 }
+function openClassPanel(onDone){
+  const row = $("classrow"); row.innerHTML = "";
+  Object.entries(CLASSES).forEach(([id, c]) => {
+    const d = document.createElement("div"); d.className = "classcard";
+    d.innerHTML = `<img src="${c.img}" alt="${c.name}"><div class="cc-body"><div class="cc-name">${c.name}</div><div class="cc-title">${c.title}</div><div class="cc-desc">${c.desc}<br>被动：${c.passive}</div><div class="cc-skill">✦ ${c.skillName}：${c.skillDesc}（冷却 ${c.skillCd} 回合）</div></div>`;
+    d.addEventListener("click", () => { SFX.coin(); applyClass(id); closePanels(); onDone(); });
+    row.appendChild(d);
+  });
+  openPanel("panel-class");
+}
+function applyClass(id){
+  const c = CLASSES[id]; if(!c) return;
+  R.cls = id; R.maxhp = c.hp; R.hp = c.hp;
+  R.deck = R.deck.map(inst => inst.id === "hero" ? { id: c.card, up: false } : inst);
+  syncTopbar();
+}
 function openBlessing(onDone){
   showScreen(null);
   const row = $("blessrow"); row.innerHTML = "";
@@ -1551,18 +1765,19 @@ function openBlessing(onDone){
 function startRun(endless){
   R = { hp: 80, maxhp: 80, gold: 60, act: 1, pos: null, kills: 0, combats: 0,
     deck: [], relics: [], potions: [pick(Object.keys(POTIONS))], bless: null,
-    map: null, equip: { weapon: null, armor: null, charm: null }, bag: [],
+    map: null, equip: { weapon: null, helm: null, armor: null, gloves: null, boots: null, charm: null }, bag: [], cls: "swordsman", quests: [],
     endless: !!endless, efloor: 0 };
   const starter = ["strike","strike","strike","strike","guard","guard","guard","guard","windstep","blood","hero"];
   R.deck = starter.map(id => ({ id, up: false }));
   R.map = genMap(1);
+  initQuests();
   REC.runs++; REC.best = Math.max(REC.best, 1); saveRec(); renderStartRecords();
   closePanels(); $("banner").style.display = "none";
   syncTopbar();
-  openBlessing(() => {
+  openClassPanel(() => openBlessing(() => {
     if(R.endless){ startEndlessFloor(); toast("♾️ 无尽深渊：活得越久，宝物越好！"); return; }
     showScreen("map"); renderMap(); syncTopbar();
-  });
+  }));
 }
 function startEndlessFloor(){
   R.efloor++;
@@ -1574,6 +1789,8 @@ $("endlessbtn").addEventListener("click", () => { SFX.click(); warmLegendaryVide
 $("bannerbtn").addEventListener("click", ()=>{ SFX.click(); $("banner").style.display = "none"; showScreen("start"); renderStartRecords(); });
 $("deckbtn").addEventListener("click", ()=>{ if(R){ SFX.click(); openDeckView(); } });
 $("deckclose").addEventListener("click", closePanels);
+$("questbtn").addEventListener("click", () => { if(R){ SFX.click(); renderQuests(); openPanel("panel-quests"); } });
+$("questclose").addEventListener("click", closePanels);
 
 function attachCard3DTilt(el){
   el.addEventListener("pointermove", e => {
@@ -1595,7 +1812,7 @@ function cardEl(inst, opts = {}){
   const isSpecial = d.rarity === "rare" || d.rarity === "legendary" || d.fused;
   const fxOverlay = (!d.video && isSpecial)
     ? `<div class="art-fx ${fxCls}${d.fused ? " fx-fused" : ""}"></div>` : "";
-  const badge = d.video ? `<span class="dyn">▶ 动态卡面</span>`
+  const badge = d.video ? ""
     : d.fused ? `<span class="dyn fusebadge">⚗️ 融合</span>`
     : d.rarity === "rare" ? `<span class="dyn rarebadge">✦ 稀有</span>` : "";
   const art = (d.video && !opts.staticArt)
@@ -1652,6 +1869,7 @@ function usePotion(idx){
   if(!C || C.busy || C.over || C.introLock) return;
   const pid = R.potions[idx]; if(!pid) return;
   R.potions.splice(idx, 1);
+  questAdd("potions", 1);
   SFX.potion();
   renderPotions();
   const pp = stagePos($("player").getBoundingClientRect());
@@ -1696,6 +1914,42 @@ function triggerFuryBurst(){
   drawCards(2);
   syncCombat();
 }
+function updateSkillBtn(){
+  const b = $("skillbtn"); if(!b) return;
+  if(!C || !R){ b.style.display = "none"; return; }
+  const CLS = CLASSES[R.cls] || CLASSES.swordsman;
+  b.style.display = "flex";
+  const cd = C.skillCd || 0;
+  $("skilltxt").textContent = cd > 0 ? `${CLS.skillName} · ${cd} 回合` : CLS.skillName;
+  b.classList.toggle("ready", cd <= 0);
+  b.disabled = cd > 0;
+}
+function useSkill(){
+  if(!C || C.busy || C.over || C.introLock || (C.skillCd || 0) > 0) return;
+  const CLS = CLASSES[R.cls] || CLASSES.swordsman;
+  C.skillCd = CLS.skillCd; C.busy = true; updateSkillBtn();
+  const cine = $("skillcine"), vid = $("skillvid");
+  $("skillcinename").textContent = CLS.skillName;
+  vid.src = CLS.video; cine.style.display = "flex";
+  const p = vid.play(); if(p) p.catch(() => {});
+  SFX.legendaryCharge();
+  let fired = false;
+  const fire = () => {
+    if(fired) return; fired = true;
+    cine.style.display = "none"; try{ vid.pause(); }catch(e){}
+    cine.onclick = null;
+    if(!C) return;
+    C.busy = false;
+    SFX.legendaryImpact();
+    if(R.cls === "assassin"){ dealDamageToEnemy(20, true, false, { heavy: true, tag: "雷霆绝杀！" }); if(C && !C.over) C.energy += 1; }
+    else if(R.cls === "priestess"){ healPlayer(16); C.pblock += 12; SFX.heal(); burstOn($("player"), "heal"); const pp = stagePos($("player").getBoundingClientRect()); floatNum(pp.x, pp.y - 40, "🌙 月光祷言", "#bcd8ff", { tier: "status" }); }
+    else { dealDamageToEnemy(26, true, false, { heavy: true, tag: "剑域解放！" }); }
+    syncCombat(); updateSkillBtn();
+  };
+  cine.onclick = fire;
+  setTimeout(fire, 2600);
+}
+$("skillbtn").addEventListener("click", useSkill);
 $("burstbtn").addEventListener("click", triggerFuryBurst);
 addEventListener("keydown", e => { if(e.code === "KeyQ" && $("screen-combat").classList.contains("on")) triggerFuryBurst(); });
 
@@ -1767,6 +2021,10 @@ function startCombat(kind){
   const idleVid = IDLE_VIDEOS[C.img], ev = $("enemyvid");
   if(idleVid){ ev.poster = C.img; if(ev.getAttribute("src") !== idleVid) ev.src = idleVid; ev.style.display = "block"; $("enemyimg").style.display = "none"; const pr = ev.play(); if(pr) pr.catch(()=>{}); }
   else { ev.pause(); ev.removeAttribute("src"); ev.load(); ev.style.display = "none"; $("enemyimg").style.display = "block"; }
+  const CLS0 = CLASSES[R.cls] || CLASSES.swordsman;
+  $("pava").querySelector("img").src = CLS0.img;
+  $("pname").innerHTML = `${CLS0.name}<small>${CLS0.title}</small>`;
+  C.skillCd = 0; updateSkillBtn();
   $("enemy").classList.remove("dying");
   $("enemy").classList.toggle("bossmode", kind === "boss");
   $("enemyname").innerHTML = `${C.name}<small>${C.en}</small>`;
@@ -1790,7 +2048,7 @@ function playEntrance(){
   b.className = isBoss ? "" : "elite-style";
   b.innerHTML = `<div class="ib-kicker">${isBoss ? "👑 DEEP ABYSS SOVEREIGN · 深渊领主降临" : "🔥 ELITE ENCOUNTER · 精英现身"}</div>
     <div class="ib-name">${C.name}</div><div class="ib-line"></div>
-    <div class="ib-sub">${C.en || ""}</div>${warnTxt ? `<div class="ib-warn">${warnTxt}</div>` : ""}`;
+    <div class="ib-sub">${C.en || ""}</div>${isBoss && BOSS_LINES[R.act] ? `<div class="ib-quote">“${BOSS_LINES[R.act]}”</div>` : ""}${warnTxt ? `<div class="ib-warn">${warnTxt}</div>` : ""}`;
   const dur = isBoss ? 2050 : 1280;
   let doneIntro = false;
   const endIntro = () => {
@@ -1802,7 +2060,7 @@ function playEntrance(){
     stage.removeEventListener("click", endIntro);
   };
   setTimeout(() => stage.addEventListener("click", endIntro), 280);
-  if(isBoss){ ct.classList.add("on"); cb.classList.add("on"); veil.classList.add("on"); SFX.bossEntrance(); }
+  if(isBoss){ ct.classList.add("on"); cb.classList.add("on"); veil.classList.add("on"); SFX.bossEntrance(); bossSpeak(BOSS_LINES[R.act]); }
   else { SFX.bossCharge(); }
   const ep = stagePos($("enemyframe").getBoundingClientRect());
   $("enemyframe").animate([
@@ -2399,7 +2657,7 @@ function endTurn(){
       if(C.hp <= 0){ winCombat(); return; }
       if(R.hp <= 0){ loseCombat(); return; }
       setTimeout(() => {
-        C.turn++; C.pblock = 0; C.combo = 0; C.firstAtkUsed = false;
+        C.turn++; if(C.skillCd > 0) C.skillCd--; updateSkillBtn(); C.pblock = 0; C.combo = 0; C.firstAtkUsed = false;
         if(C.regen) healPlayer(C.regen);
         if(hasRelic("aegis")) C.pblock += 2;
         if(C.pburn > 0){ damagePlayerRaw(C.pburn); floatNum(162, 380, "🔥 -" + C.pburn, "#ffc48a", { tier:"status" }); C.pburn--;
@@ -2434,12 +2692,14 @@ function endTurn(){
 }
 function winCombat(){
   if(C.over) return; C.over = true; R.kills++;
+  questAdd("kills", 1); questAdd("wins", 1); if(C.kind === "elite") questAdd("elites", 1); if(C.kind === "boss") questAdd("bosses", 1);
   SFX.victory();
   $("enemy").classList.add("dying");
   if(hasRelic("fang")) healPlayer(4);
   const eqHeal = equipStats().afterheal; if(eqHeal) healPlayer(eqHeal);
   const goldBase = C.kind === "boss" ? 110 : C.kind === "elite" ? irnd(42, 58) : irnd(22, 38);
   const gold = gainGold(goldBase);
+  questAdd("gold", gold);
   let relic = null, equipDrop = null, potDrop = null;
   if(C.kind === "elite"){ relic = giveRelic(randomRelic(false));
     if(Math.random() < 0.65) equipDrop = giveEquip(randomEquip(2)); }
@@ -2461,7 +2721,7 @@ function winCombat(){
   const row = $("rewardcards"); row.innerHTML = "";
   rollRewardCards(C.kind === "boss" ? 0.22 : 0).forEach(inst => {
     const el = cardEl(inst, { big: true });
-    el.addEventListener("click", () => { SFX.coin(); R.deck.push(inst); syncTopbar(); finishReward(); });
+    el.addEventListener("click", () => { SFX.coin(); R.deck.push(inst); syncTopbar(); questCheckDeck(); finishReward(); });
     row.appendChild(el);
   });
   $("rewardskip").style.display = ""; $("rewardgo").style.display = "none";
@@ -2501,6 +2761,7 @@ function victory(){ gameOver(true); }
 /* ================= REST / SHOP / EVENT ================= */
 function restHealAmount(){ let base = R.maxhp * 0.3 * (hasRelic("spring") ? 1.3 : 1);
   if(R.deck.some(d => d.id === "priestess")) base *= 1.15;
+  if(R.cls === "priestess") base *= 1.15;
   return Math.round(base); }
 function openRest(){
   showScreen(null);
@@ -2555,6 +2816,7 @@ $("fuseconfirm").addEventListener("click", () => {
   const nameA = CARDS[R.deck[i].id].name, nameB = CARDS[R.deck[j].id].name;
   R.deck.splice(i, 1); R.deck.splice(j, 1);
   R.deck.push(res); syncTopbar(); SFX.reaction(); SFX.furyBurst();
+  questAdd("fusions", 1); questCheckDeck();
   showRestReveal(`⚗️ 熔炼成功！${nameA} + ${nameB} →「${CARDS[res.id].name}」`, res);
 });
 function equipCardHTML(id, equipped){
@@ -2565,13 +2827,21 @@ function equipCardHTML(id, equipped){
 }
 function renderEquip(){
   const slots = $("equipslots"); slots.innerHTML = "";
-  for(const slot of ["weapon", "armor", "charm"]){
+  const grid = document.createElement("div"); grid.className = "eqgrid";
+  for(const slot of SLOT_ORDER){
     const id = R.equip[slot];
-    if(id){ const d = document.createElement("div"); d.innerHTML = equipCardHTML(id, true);
-      d.firstChild.addEventListener("click", () => { R.bag.push(id); R.equip[slot] = null; renderEquip(); syncTopbar(); });
-      slots.appendChild(d.firstChild); }
-    else slots.innerHTML += `<div class="relicget" style="margin:0;min-width:190px;opacity:.45"><div class="ricon">▢</div><div style="text-align:left"><div class="rname">${SLOT_NAMES[slot]}</div><div class="rdesc">空</div></div></div>`;
+    const d = document.createElement("div");
+    if(id){ const e = EQUIP[id];
+      d.className = `eqslot filled t${e.tier}`;
+      d.innerHTML = `<div class="eqslot-name">${SLOT_NAMES[slot]} · ${["","普通","精良","史诗"][e.tier]}</div><div class="eqicon">${e.icon}</div><div class="eqitem-name">${e.name}</div><div class="eqitem-desc">${e.desc}</div><div class="eqitem-desc" style="color:#ffd76a">点击卸下</div>`;
+      d.addEventListener("click", () => { R.bag.push(id); R.equip[slot] = null; renderEquip(); syncTopbar(); });
+    } else {
+      d.className = "eqslot empty";
+      d.innerHTML = `<div class="eqslot-name">${SLOT_NAMES[slot]}</div><div class="eqicon">${SLOT_ICONS[slot]}</div><div class="eqitem-desc">空 —— 在背包点一件${SLOT_NAMES[slot]}穿上</div>`;
+    }
+    grid.appendChild(d);
   }
+  slots.appendChild(grid);
   const bag = $("equipbag"); bag.innerHTML = R.bag.length ? "" : `<span style="color:#8fa3ad;font-size:13px">背包空空 —— 精英和 Boss 会掉落装备，商店也有卖</span>`;
   R.bag.forEach((id, i) => { const d = document.createElement("div"); d.innerHTML = equipCardHTML(id, false);
     d.firstChild.addEventListener("click", () => { const slot = EQUIP[id].slot;
@@ -2587,6 +2857,7 @@ $("restupgrade").addEventListener("click", () => {
   $("restdeck").style.display = "block";
   deckGridInto(document.querySelector(".restgrid"), "upgrade", i => {
     R.deck[i].up = true; SFX.buff(); SFX.reaction();
+    questAdd("upgrades", 1);
     showRestReveal(`🔨 锻造完成！「${CARDS[R.deck[i].id].name}」已升级`, R.deck[i]); });
 });
 let shopState = null;
