@@ -609,6 +609,46 @@
   .card.selected { outline: 3px solid #ffd76a; outline-offset: 2px; transform: translateY(-12px) !important; }
   .flycard { position:absolute; z-index:55; pointer-events:none; margin:0 !important; }
 </style>
+<style>
+  .menubtn{ font-size:15px !important; padding:10px 22px !important; background:linear-gradient(180deg, rgba(38,64,84,.92), rgba(16,30,44,.94)) !important; border:1px solid rgba(94,234,212,.35) !important; }
+  .hubgrid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0 6px; }
+  .hubbtn{ background:linear-gradient(160deg, rgba(30,52,72,.9), rgba(12,22,34,.95)); border:1px solid rgba(94,234,212,.3); border-radius:14px; color:#eaf6ff; font-size:17px; padding:16px 10px; cursor:pointer; font-family:inherit; transition:transform .15s, border-color .15s; }
+  .hubbtn:hover{ transform:translateY(-2px); border-color:#f5d88a; }
+  .hubbtn small{ display:block; margin-top:5px; font-size:11.5px; color:#8faab8; }
+  #herogrid{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-top:14px; }
+  .herocard{ width:186px; background:linear-gradient(170deg, rgba(26,42,60,.92), rgba(9,16,26,.96)); border:1px solid rgba(120,160,190,.28); border-radius:14px; overflow:hidden; text-align:center; padding-bottom:12px; }
+  .herocard img{ width:100%; height:190px; object-fit:cover; object-position:top center; display:block; }
+  .herocard.locked img{ filter:grayscale(.85) brightness(.55); }
+  .herocard .hname{ font-size:16.5px; font-weight:700; margin-top:9px; color:#f2f8ff; }
+  .herocard .htitle{ font-size:11.5px; color:#8faab8; margin-top:2px; }
+  .herocard .hstars{ color:#ffd76a; font-size:14px; letter-spacing:2px; margin-top:5px; min-height:19px; }
+  .herocard .hfrag{ font-size:12px; color:#a8c6d8; margin-top:3px; }
+  .tierbadge{ display:inline-block; font-size:10.5px; font-weight:800; padding:1.5px 8px; border-radius:20px; margin-top:7px; letter-spacing:1px; }
+  .tier-SSR{ background:linear-gradient(90deg,#8a5a12,#f5d88a,#8a5a12); color:#241703; box-shadow:0 0 12px rgba(245,216,138,.45); }
+  .tier-SR{ background:linear-gradient(90deg,#4b2470,#a678ff); color:#f4ecff; }
+  .herocard.tiercard-SSR{ border-color:rgba(245,216,138,.65); box-shadow:0 0 18px rgba(245,216,138,.16); }
+  .herocard.tiercard-SR{ border-color:rgba(166,120,255,.5); }
+  .herobtn{ margin-top:9px; background:linear-gradient(180deg,#c9922e,#8a5a12); border:none; color:#fff8e6; font-weight:700; padding:7px 16px; border-radius:9px; cursor:pointer; font-family:inherit; font-size:13px; }
+  .herobtn:disabled{ background:#33424f; color:#7d93a5; cursor:not-allowed; }
+  #gacharesults{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin:16px 0 4px; min-height:40px; }
+  .gachacard{ width:128px; border-radius:12px; overflow:hidden; background:linear-gradient(170deg, rgba(26,42,60,.95), rgba(9,16,26,.97)); border:1px solid rgba(120,160,190,.3); text-align:center; padding-bottom:9px; animation:gachaflip .55s cubic-bezier(.2,.8,.3,1.2) backwards; }
+  .gachacard img{ width:100%; height:118px; object-fit:cover; object-position:top center; display:block; }
+  .gachacard .gname{ font-size:13.5px; font-weight:700; margin-top:6px; color:#f2f8ff; }
+  .gachacard .gfrag{ font-size:11.5px; color:#8ef1ff; margin-top:2px; }
+  .gachacard.g-SSR{ border-color:#f5d88a; box-shadow:0 0 20px rgba(245,216,138,.4); }
+  .gachacard.g-SR{ border-color:rgba(166,120,255,.65); }
+  .gachacard.g-unlock{ border-color:#ff9d5c; box-shadow:0 0 26px rgba(255,157,92,.55); }
+  @keyframes gachaflip{ from{ transform:rotateY(88deg) scale(.8); opacity:0; } to{ transform:rotateY(0) scale(1); opacity:1; } }
+  .stagerow{ display:flex; align-items:center; gap:14px; background:linear-gradient(90deg, rgba(26,44,62,.85), rgba(12,22,34,.9)); border:1px solid rgba(94,234,212,.22); border-radius:12px; padding:11px 14px; margin-top:10px; text-align:left; }
+  .stagerow img{ width:52px; height:52px; border-radius:9px; object-fit:cover; object-position:top center; }
+  .stagerow .sname{ font-size:15px; font-weight:700; color:#eef7ff; }
+  .stagerow .sdrop{ font-size:12px; color:#9fc3d6; margin-top:2px; }
+  .stagerow .sclear{ font-size:11px; color:#ffd76a; margin-top:2px; }
+  .stagerow .sgo{ margin-left:auto; flex:none; }
+  #cardlibgrid{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-top:14px; max-height:56vh; overflow-y:auto; padding:4px; }
+  .setline{ margin-top:12px; font-size:13px; color:#a8c6d8; text-align:center; line-height:1.9; }
+  .setline b{ color:#ffd76a; }
+</style>
 </head>
 <body>
 <div id="stage">
@@ -636,6 +676,11 @@
       <div class="start-actions">
         <button class="bigbtn" id="startbtn">⚔️ 开始冒险</button>
         <button class="bigbtn purple" id="endlessbtn">♾️ 无尽刷宝</button>
+      </div>
+      <div class="start-actions" style="margin-top:10px">
+        <button class="bigbtn menubtn" id="heroesbtn">👥 英雄图鉴</button>
+        <button class="bigbtn menubtn" id="gachabtn">💠 深渊召唤</button>
+        <button class="bigbtn menubtn" id="stagesbtn">🌀 裂隙关卡</button>
       </div>
       <div style="margin-top:12px;font-size:11.5px;color:#8faab8">无尽刷宝：无限层数连续激战，每 3 层必掉装备、每 5 层 Boss —— 专为极限构筑而生</div>
       <div id="startrecords"></div>
@@ -711,6 +756,7 @@
       <div class="tchip" id="deckbtn">牌组 <b id="tb-deck">11</b></div>
       <div class="tchip" id="questbtn" style="cursor:pointer">📜 任务 <b id="tb-quest"></b></div>
       <div class="tchip" id="equipbtn">⚔️ 装备</div>
+      <div class="tchip" id="hubbtn" style="cursor:pointer" title="深渊枢纽：英雄图鉴 / 深渊召唤 / 裂隙关卡 / 卡牌图鉴">💠 <b id="tb-crystal">0</b></div>
       <div class="tchip" id="sfxbtn" title="开关音效">🔊</div>
     </div>
   </div>
@@ -828,6 +874,78 @@
       <div class="psub" style="margin-top:22px">背 包</div>
       <div id="equipbag" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px;min-height:60px"></div>
       <div class="choicebtns"><button class="goldbtn" id="equipclose">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- HUB -->
+  <div class="panelwrap" id="panel-hub">
+    <div class="panel" style="width:560px">
+      <h2>💠 深 渊 枢 纽</h2>
+      <div class="psub">深渊结晶 <b style="color:#8ef1ff" id="hubcrystal">0</b> —— 刷裂隙、打 Boss、通关都能攒</div>
+      <div class="hubgrid">
+        <button class="hubbtn" id="hub-heroes">👥 英雄图鉴<small>解锁 · 升星 · 永久加成</small></button>
+        <button class="hubbtn" id="hub-gacha">💠 深渊召唤<small>抽英雄碎片</small></button>
+        <button class="hubbtn" id="hub-stages">🌀 裂隙关卡<small>定点刷碎片刷宝</small></button>
+        <button class="hubbtn" id="hub-cards">🃏 卡牌图鉴<small>全卡牌一览</small></button>
+      </div>
+      <div class="choicebtns"><button class="goldbtn" id="hubclose">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- HEROES -->
+  <div class="panelwrap" id="panel-heroes">
+    <div class="panel" style="width:860px">
+      <h2>👥 英 雄 图 鉴</h2>
+      <div class="psub" id="herobonus"></div>
+      <div id="herogrid"></div>
+      <div class="choicebtns"><button class="goldbtn" id="heroesclose">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- GACHA -->
+  <div class="panelwrap" id="panel-gacha">
+    <div class="panel" style="width:760px">
+      <h2>💠 深 渊 召 唤</h2>
+      <div class="psub">深渊结晶 <b style="color:#8ef1ff" id="gachabal">0</b> · 单抽 30 / 十连 270 · <span id="gachapity"></span><br>概率：SSR 碎片 10%（30 抽保底）· SR 碎片×8 25% · SR 碎片×4 40% · SR 碎片×2 22% · 3% 直接解锁未拥有英雄</div>
+      <div id="gacharesults"></div>
+      <div class="choicebtns">
+        <button class="goldbtn" id="gacha1">召唤 ×1（30）</button>
+        <button class="goldbtn" id="gacha10">召唤 ×10（270）</button>
+        <button class="goldbtn" id="gachaclose">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGES -->
+  <div class="panelwrap" id="panel-stages">
+    <div class="panel" style="width:680px">
+      <h2>🌀 裂 隙 关 卡</h2>
+      <div class="psub">幻境挑战：用你当前牌组迎战指定敌人，伤势与药水消耗不带回现实。定点掉落英雄碎片与深渊结晶，可反复刷。</div>
+      <div id="stagelist"></div>
+      <div class="choicebtns"><button class="goldbtn" id="stagesclose">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- CARD LIBRARY -->
+  <div class="panelwrap" id="panel-cards">
+    <div class="panel" style="width:920px">
+      <h2>🃏 卡 牌 图 鉴</h2>
+      <div class="psub" id="cardlibcount"></div>
+      <div id="cardlibgrid"></div>
+      <div class="choicebtns"><button class="goldbtn" id="cardsclose">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- FARM RESULT -->
+  <div class="panelwrap" id="panel-farmresult">
+    <div class="panel" style="width:520px">
+      <h2>🌀 裂 隙 战 利 品</h2>
+      <div id="farmresultbody" style="text-align:center;font-size:15px;line-height:2"></div>
+      <div class="choicebtns">
+        <button class="goldbtn" id="farmagain">再战一局</button>
+        <button class="goldbtn" id="farmback">返回裂隙</button>
+        <button class="goldbtn" id="farmclose">关闭</button>
+      </div>
     </div>
   </div>
 
@@ -1278,6 +1396,14 @@ const CARDS = {
   chargeblade:{ name:"蓄力斩", type:"攻击", cost:1, rarity:"common", glyph:"🔋", grad:"linear-gradient(150deg,#2e4038,#121c17)", dmg:6, growDmg:2, up:{dmg:2,growDmg:1} },
   dodge:   { name:"闪避", type:"技能", cost:1, rarity:"common", glyph:"💨", grad:"linear-gradient(150deg,#31434a,#131e22)", block:5, jifeng:1, up:{block:3} },
   detonate:{ name:"引爆", type:"技能", cost:1, rarity:"rare", glyph:"💥", grad:"linear-gradient(150deg,#472b16,#1d1108)", detonateVuln:6, up:{detonateVuln:2} },
+  frostnova:{ name:"霜爆", type:"技能", cost:2, rarity:"rare", el:"冰", glyph:"❄️", grad:"linear-gradient(150deg,#1d3a4a,#0a141d)", dmg:8, block:6, up:{dmg:3, block:3} },
+  crimsonflurry:{ name:"绯红连斩", type:"攻击", cost:1, rarity:"rare", el:"血", glyph:"🩸", grad:"linear-gradient(150deg,#4a1626,#1a0810)", dmg:4, hits:3, up:{dmg:1} },
+  moonlitward:{ name:"月光庇护", type:"技能", cost:1, rarity:"rare", el:"光", glyph:"🌙", grad:"linear-gradient(150deg,#3a3a5e,#12122a)", block:10, heal:4, up:{block:3, heal:2} },
+  abyssgaze:{ name:"深渊凝视", type:"技能", cost:1, rarity:"rare", el:"影", glyph:"👁️", grad:"linear-gradient(150deg,#241a3a,#0b0716)", vuln:2, draw:1, up:{vuln:1} },
+  shardresonance:{ name:"碎片共鸣", type:"技能", cost:0, rarity:"common", el:"雷", glyph:"💠", grad:"linear-gradient(150deg,#173a4a,#081820)", energy:1, selfdmg:3, up:{selfdmg:-1} },
+  huntersmark:{ name:"猎手印记", type:"技能", cost:1, rarity:"common", el:"铁", glyph:"🎯", grad:"linear-gradient(150deg,#3a2c14,#171106)", vuln:1, weak:1, up:{vuln:1} },
+  starfall:{ name:"星陨", type:"攻击", cost:3, rarity:"legendary", el:"光", glyph:"☄️", grad:"linear-gradient(150deg,#4a3a10,#1d1606)", dmg:22, burn:2, up:{dmg:6} },
+  galeform:{ name:"疾风化形", type:"技能", cost:1, rarity:"rare", el:"风", glyph:"🍃", grad:"linear-gradient(150deg,#173a24,#08170e)", jifeng:2, draw:1, up:{jifeng:1} },
   burnburst:{ name:"燃爆", type:"攻击", cost:1, rarity:"rare", glyph:"🧨", grad:"linear-gradient(150deg,#4a2418,#1e0f0a)", detonateBurn:4, up:{detonateBurn:2} },
   wolfpact:{ name:"灵契 · 影狼", type:"技能", cost:2, rarity:"rare", glyph:"🐺", grad:"linear-gradient(150deg,#26343e,#10181d)", summon:5, up:{summon:2} },
   bloodritual:{ name:"血祭", type:"技能", cost:0, rarity:"rare", glyph:"🕯️", grad:"linear-gradient(150deg,#40202c,#170c11)", selfdmg:5, draw:3, up:{draw:1} },
@@ -1411,23 +1537,26 @@ function fusionResult(a, b){
 const EQUIP = {
   rustblade:  { slot:"weapon", name:"锈纹长剑", tier:1, icon:"🗡️", atk:1, desc:"攻击牌伤害 +1" },
   knightblade:{ slot:"weapon", name:"骑士铭文剑", tier:2, icon:"⚔️", atk:2, desc:"攻击牌伤害 +2" },
-  dragonfang: { slot:"weapon", name:"龙牙裂刃", tier:3, icon:"🔱", atk:3, burnhit:1, desc:"攻击牌伤害 +3，命中附加 1 层灼烧" },
-  leathers:   { slot:"armor", name:"影织皮甲", tier:1, icon:"🥋", blk:1, desc:"卡牌获得的格挡 +1" },
+  dragonfang: { slot:"weapon", name:"龙牙裂刃", tier:3, icon:"🔱", atk:3, burnhit:1, set:"dragon", desc:"攻击牌伤害 +3，命中附加 1 层灼烧 · 🐉龙骸套装" },
+  leathers:   { slot:"armor", name:"影织皮甲", tier:1, icon:"🥋", blk:1, set:"void", desc:"卡牌获得的格挡 +1 · 🌑虚空套装" },
   chainmail:  { slot:"armor", name:"秘银锁甲", tier:2, icon:"🛡️", blk:2, desc:"卡牌获得的格挡 +2" },
-  dragonscale:{ slot:"armor", name:"龙鳞宝铠", tier:3, icon:"🐉", blk:3, thorns:2, desc:"格挡 +3，荆棘 +2" },
-  galependant:{ slot:"charm", name:"疾风坠", tier:1, icon:"🌀", startdraw:1, desc:"战斗开始时多抽 1 张牌" },
-  bloodstone: { slot:"charm", name:"血石", tier:2, icon:"🔴", afterheal:3, desc:"每场战斗胜利后回复 3 点生命" },
+  dragonscale:{ slot:"armor", name:"龙鳞宝铠", tier:3, icon:"🐉", blk:3, thorns:2, set:"dragon", desc:"格挡 +3，荆棘 +2 · 🐉龙骸套装" },
+  galependant:{ slot:"charm", name:"疾风坠", tier:1, icon:"🌀", startdraw:1, set:"gale", desc:"战斗开始时多抽 1 张牌 · 🍃疾风套装" },
+  bloodstone: { slot:"charm", name:"血石", tier:2, icon:"🔴", afterheal:3, set:"blood", desc:"每场战斗胜利后回复 3 点生命 · 🩸血怒套装" },
   goldbag:    { slot:"charm", name:"贪婪金袋", tier:2, icon:"👛", goldmul:0.2, desc:"获得的金币 +20%" },
-  voidcore:   { slot:"charm", name:"虚空核心", tier:3, icon:"🔮", firstatk:3, desc:"每回合第一张攻击牌伤害 +3" },
+  voidcore:   { slot:"charm", name:"虚空核心", tier:3, icon:"🔮", firstatk:3, set:"void", desc:"每回合第一张攻击牌伤害 +3 · 🌑虚空套装" },
   ironcap:    { slot:"helm", name:"铁头盔", tier:1, icon:"⛑️", blk:1, desc:"卡牌获得的格挡 +1" },
-  ashhelm:    { slot:"helm", name:"灰烬战盔", tier:2, icon:"🪖", thorns:2, desc:"荆棘 +2" },
+  ashhelm:    { slot:"helm", name:"灰烬战盔", tier:2, icon:"🪖", thorns:2, set:"blood", desc:"荆棘 +2 · 🩸血怒套装" },
   dawnhelm:   { slot:"helm", name:"黎明冠盔", tier:3, icon:"👑", afterheal:4, desc:"每场战斗胜利后回复 4 点生命" },
   gripgloves: { slot:"gloves", name:"蛮力拳套", tier:1, icon:"🥊", firstatk:2, desc:"每回合第一张攻击牌伤害 +2" },
-  swiftgloves:{ slot:"gloves", name:"疾风手套", tier:2, icon:"🧤", startdraw:1, desc:"战斗开始时多抽 1 张牌" },
-  dragongloves:{ slot:"gloves", name:"龙爪手套", tier:3, icon:"🐲", atk:2, desc:"攻击牌伤害 +2" },
-  swiftboots: { slot:"boots", name:"疾行之靴", tier:1, icon:"🥾", startdraw:1, desc:"战斗开始时多抽 1 张牌" },
+  swiftgloves:{ slot:"gloves", name:"疾风手套", tier:2, icon:"🧤", startdraw:1, set:"gale", desc:"战斗开始时多抽 1 张牌 · 🍃疾风套装" },
+  dragongloves:{ slot:"gloves", name:"龙爪手套", tier:3, icon:"🐲", atk:2, set:"dragon", desc:"攻击牌伤害 +2 · 🐉龙骸套装" },
+  swiftboots: { slot:"boots", name:"疾行之靴", tier:1, icon:"🥾", startdraw:1, set:"gale", desc:"战斗开始时多抽 1 张牌 · 🍃疾风套装" },
   shadowboots:{ slot:"boots", name:"影步长靴", tier:2, icon:"👢", firstatk:2, desc:"每回合第一张攻击牌伤害 +2" },
-  voidsteps:  { slot:"boots", name:"虚空之径", tier:3, icon:"🌀", goldmul:0.25, desc:"获得的金币 +25%" },
+  voidsteps:  { slot:"boots", name:"虚空之径", tier:3, icon:"🌀", goldmul:0.25, set:"void", desc:"获得的金币 +25% · 🌑虚空套装" },
+  bloodblade: { slot:"weapon", name:"血怒战刃", tier:2, icon:"🩸", atk:2, set:"blood", desc:"攻击牌伤害 +2 · 🩸血怒套装" },
+  frostbrand: { slot:"weapon", name:"霜痕之刃", tier:3, icon:"❄️", atk:2, burnhit:1, desc:"攻击牌伤害 +2，命中附加 1 层灼烧" },
+  moonpendant:{ slot:"charm", name:"月神吊坠", tier:3, icon:"🌙", afterheal:5, desc:"每场战斗胜利后回复 5 点生命" },
 };
 const SLOT_NAMES = { weapon:"武器", helm:"头盔", armor:"护甲", gloves:"手套", boots:"战靴", charm:"饰品" };
 const SLOT_ICONS = { weapon:"🗡️", helm:"🪖", armor:"🛡️", gloves:"🧤", boots:"🥾", charm:"🔮" };
@@ -1436,7 +1565,14 @@ function equipStats(){ const s = { atk:0, blk:0, thorns:0, startdraw:0, afterhea
   if(!R) return s;
   for(const slot of SLOT_ORDER){ const id = R.equip[slot]; if(!id) continue; const e = EQUIP[id];
     for(const k of Object.keys(s)) if(e[k]) s[k] += e[k]; }
+  const sc = {};
+  for(const slot of SLOT_ORDER){ const id = R.equip[slot]; if(id && EQUIP[id].set) sc[EQUIP[id].set] = (sc[EQUIP[id].set] || 0) + 1; }
+  for(const sid of Object.keys(sc)){ const def = SET_DEFS[sid]; if(!def) continue;
+    const b = def.bonus[Math.min(3, sc[sid])]; if(b) for(const k of Object.keys(s)) if(b[k]) s[k] += b[k]; }
   return s; }
+function setCounts(){ const sc = {}; if(!R) return sc;
+  for(const slot of SLOT_ORDER){ const id = R.equip[slot]; if(id && EQUIP[id].set) sc[EQUIP[id].set] = (sc[EQUIP[id].set] || 0) + 1; }
+  return sc; }
 function randomEquip(maxTier){ const owned = new Set([...Object.values(R.equip), ...R.bag]);
   const pool = Object.keys(EQUIP).filter(id => !owned.has(id) && EQUIP[id].tier <= maxTier);
   return pool.length ? pick(pool) : null; }
@@ -1647,6 +1783,133 @@ const BOSSES = {
 let R = null, C = null;
 let REC = JSON.parse(localStorage.getItem("abyss_rec") || '{"wins":0,"runs":0,"best":0}');
 function saveRec(){ localStorage.setItem("abyss_rec", JSON.stringify(REC)); }
+
+/* ================= META 进度：英雄图鉴 / 碎片 / 召唤 / 裂隙（跨局持久） ================= */
+let META = JSON.parse(localStorage.getItem("abyss_meta_v1") || "null") || { crystals: 120, frags: {}, heroes: {}, stages: {}, pulls: 0, pity: 0 };
+function saveMeta(){ localStorage.setItem("abyss_meta_v1", JSON.stringify(META)); syncCrystal(); }
+function syncCrystal(){ const v = META.crystals; const a = $("tb-crystal"); if(a) a.textContent = v; const b = $("gachabal"); if(b) b.textContent = v; const c = $("hubcrystal"); if(c) c.textContent = v; }
+const HEROES = {
+  cangliu: { name:"苍流", title:"深渊剑姬", tier:"SSR", img:"assets/hero.webp", desc:"剑域之主，传说卡「苍流」的本体。" },
+  fei:     { name:"绯", title:"影舞刺客", tier:"SSR", img:"assets/assassin.webp", desc:"来去如电的影舞者，出手即绝杀。" },
+  sela:    { name:"塞拉", title:"月光祭司", tier:"SR", img:"assets/priestess.webp", desc:"聆听月光的祭司，治愈与守护见长。" },
+  kael:    { name:"凯尔", title:"霜刃骑士", tier:"SR", img:"assets/class-swordsman.webp", desc:"北境霜刃骑士，攻守兼备。" },
+  yeying:  { name:"夜莺", title:"绯影刺客", tier:"SR", img:"assets/class-assassin.webp", desc:"深红兜帽下的绯影，绝杀无声。" },
+  aurelia: { name:"奥蕾莉亚", title:"月光祭司", tier:"SR", img:"assets/class-priestess.webp", desc:"金发月光祭司，以祷言庇佑同伴。" }
+};
+const UNLOCK_COST = 30;
+const STAR_COST = { 2: 10, 3: 20, 4: 35, 5: 60 };
+function heroStars(id){ return META.heroes[id] || 0; }
+function totalStars(){ return Object.values(META.heroes).reduce((a, b) => a + b, 0); }
+function metaHpBonus(){ return totalStars() * 2; }
+function metaGoldBonus(){ return Object.keys(META.heroes).length * 10; }
+const SET_DEFS = {
+  dragon: { name:"🐉 龙骸套装", bonus: { 2: { atk:1 }, 3: { atk:2, burnhit:1 } }, text: { 2:"攻击 +1", 3:"攻击 +2 · 命中附加灼烧" } },
+  gale:   { name:"🍃 疾风套装", bonus: { 2: { firstatk:2 }, 3: { firstatk:2, startdraw:1 } }, text: { 2:"每回合首攻 +2", 3:"首攻 +2 · 开局多抽 1 张" } },
+  void:   { name:"🌑 虚空套装", bonus: { 2: { goldmul:0.15 }, 3: { goldmul:0.3, blk:1 } }, text: { 2:"金币 +15%", 3:"金币 +30% · 格挡 +1" } },
+  blood:  { name:"🩸 血怒套装", bonus: { 2: { afterheal:2 }, 3: { afterheal:4, atk:1 } }, text: { 2:"战后回复 +2", 3:"战后回复 +4 · 攻击 +1" } }
+};
+function setSummaryHTML(){ const sc = setCounts(); const lines = Object.keys(SET_DEFS).map(sid => { const def = SET_DEFS[sid]; const n = sc[sid] || 0;
+    const total = Object.values(EQUIP).filter(e => e.set === sid).length;
+    const active = n >= 2 ? ` —— <b>已激活：${def.text[Math.min(3, n)]}</b>` : (n === 1 ? ` —— 再穿 1 件激活 2 件套` : "");
+    return `<div>${def.name}：已穿 <b>${n}</b>/${total} 件${active}</div>`; }).join("");
+  return `<div class="setline">${lines}</div>`; }
+function renderHeroes(){
+  $("herobonus").innerHTML = `图鉴加成（每局自动生效）：生命上限 <b style="color:#ffd76a">+${metaHpBonus()}</b>（每颗星 +2）· 起始金币 <b style="color:#ffd76a">+${metaGoldBonus()}</b>（每位英雄 +10）· 碎片可解锁英雄并升星至 5 星`;
+  const g = $("herogrid"); g.innerHTML = "";
+  for(const id of Object.keys(HEROES)){ const h = HEROES[id]; const stars = heroStars(id); const frags = META.frags[id] || 0;
+    const d = document.createElement("div"); d.className = `herocard tiercard-${h.tier}` + (stars ? "" : " locked");
+    let btn = "";
+    if(!stars) btn = `<button class="herobtn" data-hero="${id}" data-act="unlock" ${frags >= UNLOCK_COST ? "" : "disabled"}>解锁（${UNLOCK_COST} 碎片）</button>`;
+    else if(stars < 5){ const cost = STAR_COST[stars + 1]; btn = `<button class="herobtn" data-hero="${id}" data-act="star" ${frags >= cost ? "" : "disabled"}>升至 ${stars + 1} 星（${cost} 碎片）</button>`; }
+    else btn = `<div style="margin-top:9px;color:#ffd76a;font-size:12.5px">✦ 已满星 ✦</div>`;
+    d.innerHTML = `<img src="${h.img}" alt=""><span class="tierbadge tier-${h.tier}">${h.tier}</span><div class="hname">${h.name}</div><div class="htitle">${h.title}</div><div class="hstars">${stars ? "★".repeat(stars) + "☆".repeat(5 - stars) : "未解锁"}</div><div class="hfrag">碎片：${frags} · ${h.desc}</div>${btn}`;
+    g.appendChild(d); }
+  g.querySelectorAll(".herobtn").forEach(b => b.addEventListener("click", () => { const id = b.dataset.hero; const frags = META.frags[id] || 0;
+    if(b.dataset.act === "unlock"){ if(frags < UNLOCK_COST) return; META.frags[id] = frags - UNLOCK_COST; META.heroes[id] = 1; SFX.legendaryImpact(); toast(`🎉 解锁英雄「${HEROES[id].name}」！图鉴加成提升`); }
+    else { const st = heroStars(id); const cost = STAR_COST[st + 1]; if(!cost || frags < cost) return; META.frags[id] = frags - cost; META.heroes[id] = st + 1; SFX.buff(); toast(`⭐ 「${HEROES[id].name}」升至 ${st + 1} 星！`); }
+    saveMeta(); renderHeroes(); }));
+}
+function rollPull(){
+  META.pity++;
+  if(META.pity >= 30){ META.pity = 0; const h = pick(["cangliu", "fei"]); META.frags[h] = (META.frags[h] || 0) + 12; return { hero: h, n: 12, tier: "SSR", pityHit: true }; }
+  const r = Math.random();
+  if(r < 0.03){ const un = Object.keys(HEROES).filter(id => !heroStars(id)); if(un.length){ const h = pick(un); META.heroes[h] = 1; return { hero: h, n: 0, tier: "SSR", unlock: true }; } }
+  if(r < 0.05){ META.pity = 0; const h = pick(["cangliu", "fei"]); META.frags[h] = (META.frags[h] || 0) + 15; return { hero: h, n: 15, tier: "SSR" }; }
+  if(r < 0.13){ META.pity = 0; const h = pick(["cangliu", "fei"]); META.frags[h] = (META.frags[h] || 0) + 8; return { hero: h, n: 8, tier: "SSR" }; }
+  const sr = ["sela", "kael", "yeying", "aurelia"];
+  if(r < 0.38){ const h = pick(sr); META.frags[h] = (META.frags[h] || 0) + 8; return { hero: h, n: 8, tier: "SR" }; }
+  if(r < 0.78){ const h = pick(sr); META.frags[h] = (META.frags[h] || 0) + 4; return { hero: h, n: 4, tier: "SR" }; }
+  const h = pick(sr); META.frags[h] = (META.frags[h] || 0) + 2; return { hero: h, n: 2, tier: "SR" };
+}
+function doPull(n){ const cost = n === 10 ? 270 : 30;
+  if(META.crystals < cost){ toast(`💠 深渊结晶不足（需要 ${cost}）—— 去裂隙关卡或打 Boss 攒`); return; }
+  META.crystals -= cost; META.pulls += n; const res = []; for(let i = 0; i < n; i++) res.push(rollPull()); saveMeta();
+  SFX.legendaryCharge(); renderGacha(res); }
+function renderGacha(res){ const box = $("gacharesults"); box.innerHTML = "";
+  $("gachapity").textContent = `SSR 保底进度 ${META.pity}/30`;
+  res.forEach((p, i) => { const h = HEROES[p.hero]; const d = document.createElement("div");
+    d.className = "gachacard " + (p.unlock ? "g-unlock" : "g-" + p.tier); d.style.animationDelay = (i * 0.09) + "s";
+    d.innerHTML = `<img src="${h.img}" alt=""><span class="tierbadge tier-${h.tier}">${h.tier}</span><div class="gname">${h.name}</div><div class="gfrag">${p.unlock ? "🎉 英雄解锁！" : `碎片 ×${p.n}${p.pityHit ? "（保底）" : ""}`}</div>`;
+    box.appendChild(d); }); }
+/* ---------- 裂隙关卡（刷碎片 / 刷宝） ---------- */
+let FARM = null, PENDING_FARM = null, LAST_STAGE = null;
+const STAGES = [
+  { id:"r1", name:"裂隙 I · 影袭回廊", enemy:"shadow", hpMul:1.6, dmgAdd:1, cryMin:12, cryMax:20, fragHero:"yeying", fragN:2 },
+  { id:"r2", name:"裂隙 II · 熔火兽穴", enemy:"lavabeast", hpMul:2.0, dmgAdd:2, cryMin:14, cryMax:22, fragHero:"kael", fragN:2 },
+  { id:"r3", name:"裂隙 III · 术士高塔", enemy:"warlock", hpMul:2.4, dmgAdd:3, cryMin:16, cryMax:26, fragHero:"aurelia", fragN:2 },
+  { id:"r4", name:"裂隙 IV · 祭司祭坛", enemy:"cultist", hpMul:2.8, dmgAdd:4, cryMin:20, cryMax:30, fragHero:"sela", fragN:3 },
+  { id:"r5", name:"裂隙 V · 虚空王座", enemy:"boss5", hpMul:0.95, dmgAdd:2, cryMin:30, cryMax:45, fragHero:"cangliu", fragN:3 },
+  { id:"r6", name:"裂隙 VI · 龙喉深渊", enemy:"boss3", hpMul:1.05, dmgAdd:3, cryMin:35, cryMax:55, fragHero:"fei", fragN:3 }
+];
+function stageTpl(st){ if(st.enemy === "boss5") return BOSSES[5]; if(st.enemy === "boss3") return BOSSES[3]; return ENEMIES[st.enemy]; }
+function renderStages(){ const list = $("stagelist"); list.innerHTML = "";
+  STAGES.forEach(st => { const tpl = stageTpl(st); const clears = META.stages[st.id] || 0;
+    const row = document.createElement("div"); row.className = "stagerow";
+    row.innerHTML = `<img src="${tpl.img}" alt=""><div><div class="sname">${st.name}</div><div class="sdrop">守卫：${tpl.name} · 掉落：${HEROES[st.fragHero].name}碎片 ×${st.fragN} · 深渊结晶 ${st.cryMin}–${st.cryMax}${clears ? "" : " · 首通额外 +25 结晶"}</div><div class="sclear">${clears ? `已通关 ${clears} 次` : "未通关"}</div></div><button class="goldbtn sgo">挑战</button>`;
+    row.querySelector(".sgo").addEventListener("click", () => { SFX.click(); enterFarmStage(st); });
+    list.appendChild(row); }); }
+function enterFarmStage(st){
+  if(C && !C.over){ toast("战斗中无法进入裂隙"); return; }
+  if(!R || !R.deck || !R.deck.length || R.hp <= 0){ PENDING_FARM = st; closePanels(); startRun(false); toast("先组建远征队 —— 选完职业与祝福即刻进入裂隙"); return; }
+  LAST_STAGE = st;
+  FARM = { name: st.name, tpl: stageTpl(st), hpMul: st.hpMul, dmgAdd: st.dmgAdd, stage: st, snapHp: R.hp, snapPotions: R.potions.slice() };
+  closePanels(); startCombat("battle");
+}
+function farmEnd(){ if(FARM){ R.hp = FARM.snapHp; R.potions = FARM.snapPotions; } FARM = null; C = null; syncTopbar(); if(R.endless){ startEndlessFloor(); } else { showScreen("map"); renderMap(); } }
+function farmWin(){ const st = LAST_STAGE; SFX.victory(); $("enemy").classList.add("dying");
+  const first = !META.stages[st.id]; META.stages[st.id] = (META.stages[st.id] || 0) + 1;
+  const cry = irnd(st.cryMin, st.cryMax) + (first ? 25 : 0);
+  let fragN = st.fragN + (first ? 1 : 0); if(Math.random() < 0.4) fragN += 1;
+  META.crystals += cry; META.frags[st.fragHero] = (META.frags[st.fragHero] || 0) + fragN; saveMeta();
+  $("farmresultbody").innerHTML = `⚔️ <b>${st.name}</b> 通关！<br>💠 深渊结晶 <b style="color:#8ef1ff">+${cry}</b>${first ? "（含首通 +25）" : ""}<br>🧩 ${HEROES[st.fragHero].name}碎片 <b style="color:#ffd76a">+${fragN}</b><br><span style="font-size:12px;color:#8faab8">幻境伤势已复原 —— 碎片去英雄图鉴解锁/升星，结晶去深渊召唤</span>`;
+  setTimeout(() => { farmEnd(); openPanel("panel-farmresult"); }, 750);
+}
+function farmLose(){ SFX.defeat(); toast("裂隙挑战失败 —— 幻境消散，伤势不带回现实"); setTimeout(() => { farmEnd(); }, 1000); }
+/* ---------- 面板接线 ---------- */
+function openHub(){ syncCrystal(); openPanel("panel-hub"); }
+$("hubbtn").addEventListener("click", () => { SFX.click(); openHub(); });
+$("hubclose").addEventListener("click", closePanels);
+$("heroesbtn").addEventListener("click", () => { SFX.click(); renderHeroes(); openPanel("panel-heroes"); });
+$("gachabtn").addEventListener("click", () => { SFX.click(); syncCrystal(); $("gachapity").textContent = `SSR 保底进度 ${META.pity}/30`; openPanel("panel-gacha"); });
+$("stagesbtn").addEventListener("click", () => { SFX.click(); renderStages(); openPanel("panel-stages"); });
+$("hub-heroes").addEventListener("click", () => { SFX.click(); renderHeroes(); openPanel("panel-heroes"); });
+$("hub-gacha").addEventListener("click", () => { SFX.click(); syncCrystal(); $("gachapity").textContent = `SSR 保底进度 ${META.pity}/30`; openPanel("panel-gacha"); });
+$("hub-stages").addEventListener("click", () => { SFX.click(); renderStages(); openPanel("panel-stages"); });
+$("hub-cards").addEventListener("click", () => { SFX.click(); renderCardLib(); openPanel("panel-cards"); });
+$("heroesclose").addEventListener("click", closePanels);
+$("gachaclose").addEventListener("click", closePanels);
+$("stagesclose").addEventListener("click", closePanels);
+$("cardsclose").addEventListener("click", closePanels);
+$("gacha1").addEventListener("click", () => doPull(1));
+$("gacha10").addEventListener("click", () => doPull(10));
+$("farmagain").addEventListener("click", () => { SFX.click(); closePanels(); if(LAST_STAGE) enterFarmStage(LAST_STAGE); });
+$("farmback").addEventListener("click", () => { SFX.click(); renderStages(); openPanel("panel-stages"); });
+$("farmclose").addEventListener("click", closePanels);
+function renderCardLib(){ const ids = Object.keys(CARDS).filter(id => !CARDS[id].fused);
+  $("cardlibcount").textContent = `共 ${ids.length} 张卡牌（不含熔炉合成牌）· 传说 ${ids.filter(id => CARDS[id].rarity === "legendary").length} · 稀有 ${ids.filter(id => CARDS[id].rarity === "rare").length} · 普通 ${ids.filter(id => CARDS[id].rarity === "common").length}`;
+  const g = $("cardlibgrid"); g.innerHTML = "";
+  ids.forEach(id => g.appendChild(cardEl({ id, up: false }, { staticArt: true }))); }
+syncCrystal();
 function renderStartRecords(){ $("startrecords").innerHTML =
   `历史战绩：通关 <b>${REC.wins}</b> 次 · 出征 <b>${REC.runs}</b> 次 · 最深抵达 <b>${REC.best ? "第 " + REC.best + " 层" : "—"}</b>`; }
 renderStartRecords();
@@ -1778,6 +2041,7 @@ function openClassPanel(onDone){
 function applyClass(id){
   const c = CLASSES[id]; if(!c) return;
   R.cls = id; R.maxhp = c.hp; R.hp = c.hp;
+  const _mb = metaHpBonus(); R.maxhp += _mb; R.hp += _mb;
   R.deck = R.deck.map(inst => inst.id === "hero" ? { id: c.card, up: false } : inst);
   syncTopbar();
 }
@@ -1806,6 +2070,7 @@ function startRun(endless){
     endless: !!endless, efloor: 0 };
   const starter = ["strike","strike","strike","strike","guard","guard","guard","guard","windstep","blood","hero"];
   R.deck = starter.map(id => ({ id, up: false }));
+  R.gold += metaGoldBonus();
   R.map = genMap(1);
   initQuests();
   REC.runs++; REC.best = Math.max(REC.best, 1); saveRec(); renderStartRecords();
@@ -1813,6 +2078,7 @@ function startRun(endless){
   syncTopbar();
   openClassPanel(() => openBlessing(() => {
     if(R.endless){ startEndlessFloor(); toast("♾️ 无尽深渊：活得越久，宝物越好！"); return; }
+    if(PENDING_FARM){ const st = PENDING_FARM; PENDING_FARM = null; enterFarmStage(st); return; }
     showScreen("map"); renderMap(); syncTopbar();
   }));
 }
@@ -2028,7 +2294,8 @@ function applyElementalStep(el){
 }
 function startCombat(kind){
   let tpl, hpMul = 1, dmgAdd = Math.min(12, Math.round((R.act - 1) * 1.6));
-  if(R.endless){
+  if(FARM){ tpl = FARM.tpl; hpMul = FARM.hpMul; dmgAdd = FARM.dmgAdd; }
+  else if(R.endless){
     tpl = kind === "boss" ? pick(Object.values(BOSSES)) : ENEMIES[pick(Object.keys(ENEMIES))];
     hpMul = (1 + (R.efloor - 1) * 0.18) * (kind === "elite" ? 1.5 : 1);
     dmgAdd = Math.floor((R.efloor - 1) * 0.7) + (kind === "elite" ? 2 : 0);
@@ -2069,6 +2336,7 @@ function startCombat(kind){
   $("enemyname").innerHTML = `${C.name}<small>${C.en}</small>`;
   $("ehpghost").style.width = "100%";
   $("tb-where").textContent = R.endless ? `无尽 · 第 ${R.efloor} 层` : kind === "boss" ? "Boss 战" : kind === "elite" ? "精英战" : "战斗";
+  if(FARM) $("tb-where").textContent = "裂隙 · " + FARM.name;
   showScreen("combat");
   renderPotions();
   drawCards(5 + (hasRelic("boots") ? 1 : 0) + equipStats().startdraw + (C.bondDraw || 0), true);
@@ -2731,7 +2999,9 @@ function endTurn(){
   }, 560);
 }
 function winCombat(){
-  if(C.over) return; C.over = true; R.kills++;
+  if(C.over) return; C.over = true;
+  if(FARM){ farmWin(); return; }
+  R.kills++;
   questAdd("kills", 1); questAdd("wins", 1); if(C.kind === "elite") questAdd("elites", 1); if(C.kind === "boss") questAdd("bosses", 1);
   SFX.victory();
   $("enemy").classList.add("dying");
@@ -2749,6 +3019,7 @@ function winCombat(){
   if(R.endless && R.efloor % 3 === 0 && !equipDrop)
     equipDrop = giveEquip(randomEquip(Math.min(3, 1 + Math.floor(R.efloor / 6))));
   if(R.endless) $("rewardsub").dataset.endless = "1";
+  if(C.kind === "boss"){ META.crystals += 15; saveMeta(); setTimeout(() => toast("💠 击破 Boss：深渊结晶 +15"), 600); }
   if(C.kind === "boss"){ const bh = Math.round(R.maxhp * 0.15); if(bh > 0) setTimeout(() => { healPlayer(bh); toast(`👑 击破 Boss，恢复 ${bh} 点生命`); }, 350); }
   $("rewardtitle").textContent = C.kind === "boss" ? "👑 Boss 击破！" : C.kind === "elite" ? "🔥 精英击破！" : "⚔️ 战 斗 胜 利";
   $("rewardsub").innerHTML = `获得 <b style="color:#f5d88a">${gold} 金币</b> —— 选择一张牌加入你的牌组`;
@@ -2784,10 +3055,10 @@ function finishReward(){ $("rewardskip").style.display = "none"; $("rewardcards"
 $("rewardskip").addEventListener("click", () => { SFX.coin(); gainGold(15); finishReward(); $("rewardsub").textContent = "跳过选牌，+15 金币。"; });
 $("rewardgo").addEventListener("click", () => { SFX.click(); closePanels(); C = null;
   if(R.endless){ startEndlessFloor(); } else { nodeCleared(); } });
-function loseCombat(){ if(C) C.over = true; SFX.defeat(); gameOver(false); }
+function loseCombat(){ if(C) C.over = true; if(FARM){ farmLose(); return; } SFX.defeat(); gameOver(false); }
 function gameOver(won){
   closePanels();
-  REC.best = Math.max(REC.best, R.act); if(won) REC.wins++; saveRec(); renderStartRecords();
+  REC.best = Math.max(REC.best, R.act); if(won){ REC.wins++; META.crystals += 100; saveMeta(); } saveRec(); renderStartRecords();
   $("bannertitle").textContent = won ? "🏆 深 渊 征 服 者" : "💀 倒 在 深 渊";
   $("bannertext").innerHTML = won
     ? `你击败了混沌主宰，登顶深渊第 10 层！<br>本局击杀 ${R.kills} · 经历 ${R.combats} 场战斗 · 收集遗物 ${R.relics.length} 件`
@@ -2882,6 +3153,7 @@ function renderEquip(){
     grid.appendChild(d);
   }
   slots.appendChild(grid);
+  const ssum = document.createElement("div"); ssum.innerHTML = setSummaryHTML(); slots.appendChild(ssum);
   const bag = $("equipbag"); bag.innerHTML = R.bag.length ? "" : `<span style="color:#8fa3ad;font-size:13px">背包空空 —— 精英和 Boss 会掉落装备，商店也有卖</span>`;
   R.bag.forEach((id, i) => { const d = document.createElement("div"); d.innerHTML = equipCardHTML(id, false);
     d.firstChild.addEventListener("click", () => { const slot = EQUIP[id].slot;
