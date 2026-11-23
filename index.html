@@ -420,7 +420,7 @@
   @keyframes slashfx { 0%{ opacity:0; transform:scale(.5) rotate(-14deg) } 30%{ opacity:1 } 100%{ opacity:0; transform:scale(1.25) rotate(8deg) } }
 
   /* ===== PANELS & BLESSING ALTAR ===== */
-  .panelwrap { position:absolute; inset:0; z-index:28; display:none; align-items:center; justify-content:center;
+  .panelwrap { position:absolute; inset:0; z-index:40; display:none; align-items:center; justify-content:center;
     background:rgba(3,6,11,.74); backdrop-filter:blur(6px); }
   .panelwrap.on { display:flex; }
   .panel { position:relative; width:880px; max-height:644px; overflow-y:auto;
@@ -1492,6 +1492,7 @@ function nodeCleared(){
   showScreen("map"); renderMap(); syncTopbar();
 }
 function openBlessing(onDone){
+  showScreen(null);
   const row = $("blessrow"); row.innerHTML = "";
   BLESSINGS.forEach(b => {
     const el = document.createElement("div"); el.className = "blesscard";
