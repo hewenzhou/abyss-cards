@@ -11,8 +11,8 @@
     -webkit-user-select:none; user-select:none; }
   #stage { position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center;
     background:url('assets/bg.webp') center/cover no-repeat #0b0f14; overflow:hidden; border-radius:6px; }
-  #stage::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
-    background:linear-gradient(180deg, rgba(4,8,12,.5) 0%, rgba(4,8,12,0) 16%, rgba(4,8,12,0) 52%, rgba(3,6,9,.8) 100%); }
+  #stage::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:1;
+    background:linear-gradient(180deg, rgba(4,8,12,.45) 0%, rgba(4,8,12,0) 16%, rgba(4,8,12,0) 56%, rgba(3,6,9,.72) 100%); }
   #acttint { position:absolute; inset:0; z-index:1; pointer-events:none; mix-blend-mode:overlay; opacity:0; transition:opacity .6s; }
   .screen { position:absolute; inset:0; z-index:10; display:none; }
   .screen.on { display:block; }
@@ -139,10 +139,13 @@
 
   #hand { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:9; display:flex; gap:8px; align-items:flex-end; }
   .card { position:relative; width:146px; height:210px; border-radius:13px; cursor:pointer; flex:none;
-    background:linear-gradient(165deg,#232f3a,#10161d 60%,#0b0f14); padding:5px;
-    transition:transform .18s ease, box-shadow .18s ease; transform-origin:bottom center; box-shadow:0 10px 24px rgba(0,0,0,.55); }
-  .card:hover { transform:translateY(-30px) scale(1.07) rotate(0deg) !important; z-index:30; box-shadow:0 24px 44px rgba(0,0,0,.65); }
-  .card.unplayable { filter:grayscale(.65) brightness(.62); cursor:not-allowed; }
+    background:linear-gradient(165deg,#2a3947,#141d26 60%,#0e141b); padding:5px;
+    transition:transform .18s ease, box-shadow .18s ease, filter .18s ease; transform-origin:bottom center;
+    box-shadow:0 10px 24px rgba(0,0,0,.58), 0 0 0 1px rgba(130,220,210,.16); }
+  #hand .card:not(.unplayable) { box-shadow:0 12px 26px rgba(0,0,0,.62), 0 0 16px rgba(94,234,212,.22); }
+  #hand .card.legendary:not(.unplayable) { box-shadow:0 12px 28px rgba(0,0,0,.65), 0 0 22px rgba(255,212,102,.38); }
+  .card:hover { transform:translateY(-30px) scale(1.07) rotate(0deg) !important; z-index:30; box-shadow:0 24px 44px rgba(0,0,0,.7), 0 0 22px rgba(94,234,212,.38); }
+  .card.unplayable { filter:grayscale(.72) brightness(.54); cursor:not-allowed; box-shadow:0 6px 14px rgba(0,0,0,.45); }
   .card.playing { transition:transform .38s ease, opacity .38s ease; transform:translateY(-190px) scale(1.12) !important; opacity:0; }
   .card .frame { position:relative; height:100%; border-radius:9px; overflow:hidden; display:flex; flex-direction:column; background:linear-gradient(180deg,#1a232d,#0d1218); }
   .card.common { border:1.5px solid #77828c; }
@@ -234,7 +237,7 @@
   #mapnodes { position:absolute; left:50%; top:118px; transform:translateX(-50%); width:1060px; height:520px; z-index:6; }
   #sfxbtn { cursor:pointer; } #sfxbtn:hover { border-color:rgba(94,234,212,.6); }
   /* ===== camera & crisp rendering ===== */
-  #stage-cam { position:absolute; inset:0; transform-origin:center; will-change:transform; }
+  #stage-cam { position:absolute; inset:0; transform-origin:center; z-index:5; }
   #stage img, #stage video { image-rendering:auto; }
   /* ===== animation & VFX pack ===== */
   #fxlayer { position:absolute; inset:0; z-index:36; pointer-events:none; overflow:hidden; }
@@ -1228,10 +1231,12 @@ function startCombat(kind){
   syncCombat();
   if(kind !== "battle") playEntrance();
 }
+function cancelAnims(...els){ els.forEach(el => { if(el && el.getAnimations) el.getAnimations().forEach(a => a.cancel()); }); }
 function playEntrance(){
   C.introLock = true;
   const isBoss = C.kind === "boss";
   const b = $("introbanner"), veil = $("boss-veil"), ct = $("cine-top"), cb = $("cine-bot");
+  cancelAnims(b, $("enemyframe"));
   const B = C.bossRef || (isBoss ? BOSSES[R.act] : null);
   const warnTxt = isBoss && B ? `⚠ 必杀技「${B.ultName}」 · 深渊领主压迫` : (C.affix ? `词缀「${C.affix.name}」：${C.affix.desc}` : "");
   b.className = isBoss ? "" : "elite-style";
@@ -1243,6 +1248,7 @@ function playEntrance(){
   const endIntro = () => {
     if(doneIntro) return; doneIntro = true;
     if(C) C.introLock = false;
+    cancelAnims(b);
     b.classList.remove("on"); b.style.opacity = 0;
     veil.classList.remove("on"); ct.classList.remove("on"); cb.classList.remove("on");
     stage.removeEventListener("click", endIntro);
@@ -1523,6 +1529,7 @@ function showLegendaryMoment(inst, done){
   const lm = $("legmoment"), wrap = $("legcard"), crack = $("legcrack");
   const ch = $("legchar"), stage2 = $("legstage"), lv = $("legvideo");
   const titleBox = $("legtitle");
+  cancelAnims(wrap, crack, stage2, lv, titleBox, ch);
   const d = CARDS[inst.id];
   const th = HERO_THEME[inst.id] || { accent:"#ffe299", glow:"rgba(255,200,90,.85)", startRatio:0.48, objPos:"center 22%", elFx:"bolt" };
   lm.style.setProperty("--leg-accent", th.accent);
@@ -1538,7 +1545,8 @@ function showLegendaryMoment(inst, done){
   ch.style.opacity = 0;
   titleBox.style.opacity = 0;
   stage2.classList.remove("on");
-  stage2.style.opacity = "1"; stage2.style.clipPath = "none";
+  stage2.style.opacity = "1"; stage2.style.transform = "scale(1)"; stage2.style.clipPath = "none";
+  lv.poster = d.poster || "";
   lv.style.objectPosition = th.objPos;
   lv.style.transform = "scale(1)"; lv.style.filter = "brightness(1)";
   lm.classList.add("on");
@@ -1549,6 +1557,7 @@ function showLegendaryMoment(inst, done){
   const finishAll = () => {
     if(finished) return; finished = true;
     timers.forEach(t => clearTimeout(t));
+    cancelAnims(wrap, crack, stage2, lv, titleBox, ch);
     lm.classList.remove("on"); stage2.classList.remove("on");
     try{ lv.pause(); }catch(e){}
     lm.removeEventListener("click", skip);
@@ -1560,48 +1569,16 @@ function showLegendaryMoment(inst, done){
   addEventListener("keydown", onKey);
   if(d.video){
     /* Phase 0: pre-seek to second-half breakout moment BEFORE showing video so frame 0 never flashes */
-    let videoReady = false, phase2Fired = false;
-    const revealFullscreenBreakout = () => {
-      if(finished || phase2Fired) return; phase2Fired = true;
-      const p = stagePos(wrap.getBoundingClientRect());
-      SFX.legendaryBreakout();
-      burstAt(p.x, p.y, th.elFx);
-      spawnShards(p, 22); spawnShardsToward(12);
-      FX.shockwave(640, 360, th.accent, 520, 12, 0.48);
-      FX.shockwave(640, 360, "#ffffff", 340, 6, 0.32);
-      FX.speedlines(th.accent, 0.65, 48, 0.58);
-      FX.embers(th.accent, 38);
-      impactFlash(th.glow, 0.72, 220);
-      cameraShake(14, 340);
-      /* Shatter & vanish card frame completely */
-      wrap.animate([
-        { transform: "scale(1.58)", opacity: 1, filter: "brightness(2.2)" },
-        { transform: "scale(2.45)", opacity: 0, filter: "brightness(3)" }
-      ], { duration: 240, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" });
-      timers.push(setTimeout(() => { wrap.style.visibility = "hidden"; }, 245));
-      /* Full-bleed borderless 3D breakout expanding seamlessly from shattered card */
-      stage2.classList.add("on");
-      stage2.animate([
-        { clipPath: "circle(14% at 50% 50%)", opacity: 0.92 },
-        { clipPath: "circle(112% at 50% 50%)", opacity: 1 }
-      ], { duration: 340, easing: "cubic-bezier(.16,.88,.24,1)", fill: "forwards" });
-      lv.play().catch(() => {});
+    let videoReady = false, phase2Fired = false, climaxScheduled = false;
+    const scheduleClimax = () => {
+      if(finished || climaxScheduled) return; climaxScheduled = true;
       /* Continuous 3D camera push-in toward viewer during second-half charge */
+      cancelAnims(lv);
       lv.animate([
-        { transform: "scale(1.06)", filter: "brightness(1.55) contrast(1.12)" },
+        { transform: "scale(1.06)", filter: "brightness(1.5) contrast(1.12)" },
         { transform: "scale(1.0)",  filter: "brightness(1.05) contrast(1.05)", offset: 0.22 },
         { transform: "scale(1.14)", filter: "brightness(1.12) contrast(1.08)" }
       ], { duration: 2050, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
-      /* Sleek cinematic hero nameplate (bottom-left, unobstructed face) */
-      timers.push(setTimeout(() => {
-        if(finished) return;
-        titleBox.animate([
-          { opacity: 0, transform: "translateX(-38px)" },
-          { opacity: 1, transform: "translateX(0)", offset: 0.16 },
-          { opacity: 1, transform: "translateX(0)", offset: 0.84 },
-          { opacity: 0, transform: "translateX(16px)" }
-        ], { duration: 1850, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
-      }, 120));
       /* Phase 3: Climax strike + 110ms hit-stop + seamless dissolve into battlefield */
       timers.push(setTimeout(() => {
         if(finished) return;
@@ -1623,6 +1600,47 @@ function showLegendaryMoment(inst, done){
       }, 2020));
       timers.push(setTimeout(finishAll, 2500));
     };
+    const revealFullscreenBreakout = () => {
+      if(finished || phase2Fired) return; phase2Fired = true;
+      const p = stagePos(wrap.getBoundingClientRect());
+      SFX.legendaryBreakout();
+      burstAt(p.x, p.y, th.elFx);
+      spawnShards(p, 22); spawnShardsToward(12);
+      FX.shockwave(640, 360, th.accent, 520, 12, 0.48);
+      FX.shockwave(640, 360, "#ffffff", 340, 6, 0.32);
+      FX.speedlines(th.accent, 0.65, 48, 0.58);
+      FX.embers(th.accent, 38);
+      impactFlash(th.glow, 0.72, 220);
+      cameraShake(14, 340);
+      /* Shatter & vanish card frame completely */
+      cancelAnims(wrap, crack);
+      wrap.animate([
+        { transform: "scale(1.58)", opacity: 1, filter: "brightness(2.2)" },
+        { transform: "scale(2.45)", opacity: 0, filter: "brightness(3)" }
+      ], { duration: 240, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" });
+      timers.push(setTimeout(() => { wrap.style.visibility = "hidden"; }, 245));
+      /* Full-bleed borderless 3D breakout expanding seamlessly from shattered card */
+      stage2.classList.add("on");
+      cancelAnims(stage2);
+      stage2.animate([
+        { clipPath: "circle(14% at 50% 50%)", opacity: 0.92 },
+        { clipPath: "circle(112% at 50% 50%)", opacity: 1 }
+      ], { duration: 340, easing: "cubic-bezier(.16,.88,.24,1)", fill: "forwards" });
+      lv.addEventListener("playing", scheduleClimax, { once: true });
+      lv.play().then(scheduleClimax).catch(scheduleClimax);
+      timers.push(setTimeout(scheduleClimax, 700));
+      /* Sleek cinematic hero nameplate (bottom-left, unobstructed face) */
+      timers.push(setTimeout(() => {
+        if(finished) return;
+        cancelAnims(titleBox);
+        titleBox.animate([
+          { opacity: 0, transform: "translateX(-38px)" },
+          { opacity: 1, transform: "translateX(0)", offset: 0.16 },
+          { opacity: 1, transform: "translateX(0)", offset: 0.84 },
+          { opacity: 0, transform: "translateX(16px)" }
+        ], { duration: 1850, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
+      }, 120));
+    };
     /* Phase 1: Card zoom & energy crack buildup (0 -> 440ms) */
     wrap.animate([
       { transform: "scale(.85) translateY(60px)", opacity: 0 },
@@ -1632,7 +1650,8 @@ function showLegendaryMoment(inst, done){
     ], { duration: 430, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
     crack.animate([{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "scale(1.15)" }], { duration: 420, fill: "forwards" });
     FX.sparks(640, 360, th.accent, 18, 240, { g: -80 });
-    lv.src = d.video;
+    const fullSrc = new URL(d.video, location.href).href;
+    if(lv.src !== fullSrc) lv.src = d.video;
     const seekToBreakout = () => {
       if(lv.duration && isFinite(lv.duration)){
         const targetT = Math.min(Math.max(0, lv.duration - 2.6), lv.duration * th.startRatio);
@@ -1644,10 +1663,11 @@ function showLegendaryMoment(inst, done){
     if(lv.readyState >= 1) seekToBreakout(); else lv.addEventListener("loadedmetadata", seekToBreakout, { once: true });
     timers.push(setTimeout(() => {
       if(finished) return;
-      if(videoReady) revealFullscreenBreakout();
+      if(videoReady && lv.readyState >= 2) revealFullscreenBreakout();
       else {
+        lv.addEventListener("canplay", revealFullscreenBreakout, { once: true });
         lv.addEventListener("seeked", revealFullscreenBreakout, { once: true });
-        timers.push(setTimeout(revealFullscreenBreakout, 260));
+        timers.push(setTimeout(revealFullscreenBreakout, 1100));
       }
     }, 430));
   } else if(d.poster){
