@@ -5,241 +5,481 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>深渊牌局 · Abyss Card Roguelike</title>
 <style>
+  :root {
+    --gold: #e5be67;
+    --gold-hi: #fff0be;
+    --gold-dim: #8c6920;
+    --cyan: #5eead4;
+    --cyan-deep: #0f766e;
+    --obsidian: #0a0f15;
+    --obsidian-2: #121b25;
+    --crimson: #ff5d4d;
+    --violet: #b78cff;
+    --border-gold: rgba(235, 198, 108, .38);
+    --border-cyan: rgba(94, 234, 212, .28);
+  }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { height:100%; background:#05080b; overflow:hidden;
-    font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; color:#e8eef2;
+  html, body { height:100%; background:#03060a; overflow:hidden;
+    font-family:"PingFang SC","SF Pro Display","Microsoft YaHei",system-ui,sans-serif; color:#eaf1f5;
     -webkit-user-select:none; user-select:none; }
+
+  /* ===== STAGE & ATMOSPHERE ===== */
   #stage { position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center;
-    background:url('assets/bg.webp') center/cover no-repeat #0b0f14; overflow:hidden; border-radius:6px; }
+    background:url('assets/bg.webp') center/cover no-repeat #070b10; overflow:hidden; border-radius:10px;
+    box-shadow:0 0 0 1px rgba(235,198,108,.22), 0 32px 90px rgba(0,0,0,.92); }
+  #stage::before { content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(ellipse at 50% 42%, rgba(20,58,64,.16), rgba(4,7,12,.64) 76%, rgba(2,4,8,.88) 100%); }
   #stage::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:1;
-    background:linear-gradient(180deg, rgba(4,8,12,.45) 0%, rgba(4,8,12,0) 16%, rgba(4,8,12,0) 56%, rgba(3,6,9,.72) 100%); }
-  #acttint { position:absolute; inset:0; z-index:1; pointer-events:none; mix-blend-mode:overlay; opacity:0; transition:opacity .6s; }
+    background:linear-gradient(180deg, rgba(4,8,14,.62) 0%, rgba(4,8,14,0) 15%, rgba(4,8,14,0) 58%, rgba(2,5,9,.82) 100%); }
+  #stage-cam { position:absolute; inset:0; transform-origin:center; z-index:5; }
+  #acttint { position:absolute; inset:0; z-index:1; pointer-events:none; mix-blend-mode:overlay; opacity:0; transition:opacity .7s, background .7s; }
+  #ambientcanvas { position:absolute; inset:0; width:1280px; height:720px; z-index:2; pointer-events:none; opacity:.85; }
   .screen { position:absolute; inset:0; z-index:10; display:none; }
   .screen.on { display:block; }
   button { font-family:inherit; }
 
-  /* ---------- top bar ---------- */
-  #topbar { position:absolute; top:0; left:0; right:0; height:52px; z-index:20; display:flex; align-items:center;
-    justify-content:space-between; padding:0 18px; }
-  #logo { font-size:19px; font-weight:900; letter-spacing:4px; color:#f2e3bb; text-shadow:0 0 18px rgba(216,178,92,.45); }
-  #logo small { display:block; font-size:8.5px; letter-spacing:3.5px; color:#8fa3ad; font-weight:600; margin-top:1px; }
-  #floorinfo { font-size:13px; color:#cfe3ea; background:rgba(8,13,18,.55); border:1px solid rgba(140,200,220,.18);
-    padding:6px 16px; border-radius:20px; backdrop-filter:blur(6px); letter-spacing:1px; }
+  /* ===== SHARED BUTTONS ===== */
+  .bigbtn { position:relative; overflow:hidden; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:15px 46px; border:1px solid rgba(255,240,190,.65); cursor:pointer; border-radius:12px;
+    font-size:18px; font-weight:900; letter-spacing:4px; color:#1f1503;
+    background:linear-gradient(180deg,#fff0be 0%,#e5b64e 55%,#b88322 100%);
+    box-shadow:0 5px 0 #6e4a0d, 0 14px 32px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.75);
+    transition:transform .14s ease, filter .18s ease, box-shadow .18s ease; }
+  .bigbtn::after { content:""; position:absolute; inset:0; background:linear-gradient(110deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
+    transform:translateX(-120%); transition:transform .55s ease; pointer-events:none; }
+  .bigbtn:hover { filter:brightness(1.08); transform:translateY(-2px); box-shadow:0 7px 0 #6e4a0d, 0 18px 38px rgba(229,182,78,.28); }
+  .bigbtn:hover::after { transform:translateX(120%); }
+  .bigbtn:active { transform:translateY(3px); box-shadow:0 2px 0 #6e4a0d; }
+  .bigbtn.purple { color:#f6efff; border-color:rgba(202,166,255,.55);
+    background:linear-gradient(180deg,#8b5cf6 0%,#5b21b6 65%,#3b117a 100%);
+    box-shadow:0 5px 0 #260a52, 0 14px 32px rgba(91,33,182,.45), inset 0 1px 0 rgba(255,255,255,.35); }
+  .bigbtn.purple:hover { box-shadow:0 7px 0 #260a52, 0 18px 40px rgba(139,92,246,.42); }
+
+  .ghostbtn { padding:11px 24px; border-radius:11px; cursor:pointer; font-size:13.5px; font-weight:700; letter-spacing:1.5px;
+    color:#d4e6ee; background:linear-gradient(180deg, rgba(28,42,56,.78), rgba(14,22,30,.9));
+    border:1px solid rgba(140,200,220,.28); box-shadow:0 4px 14px rgba(0,0,0,.35); transition:all .16s ease; }
+  .ghostbtn:hover:not(:disabled) { border-color:rgba(240,212,138,.72); color:#ffe9a8; transform:translateY(-1px); box-shadow:0 6px 20px rgba(240,212,138,.16); }
+  .ghostbtn:disabled { opacity:.42; cursor:not-allowed; }
+  .goldbtn { padding:11px 26px; border-radius:11px; cursor:pointer; font-size:14px; font-weight:900; letter-spacing:2px;
+    color:#211604; background:linear-gradient(180deg,#fff0be,#dfae42); border:1px solid rgba(255,244,200,.7);
+    box-shadow:0 3px 0 #7a5410, 0 8px 20px rgba(0,0,0,.45); transition:all .15s ease; }
+  .goldbtn:hover:not(:disabled) { filter:brightness(1.08); transform:translateY(-1px); }
+  .goldbtn:active:not(:disabled) { transform:translateY(2px); box-shadow:0 1px 0 #7a5410; }
+  .goldbtn:disabled { opacity:.45; cursor:not-allowed; }
+
+  /* ===== TOP BAR ===== */
+  #topbar { position:absolute; top:0; left:0; right:0; height:54px; z-index:20; display:flex; align-items:center;
+    justify-content:space-between; padding:0 18px;
+    background:linear-gradient(180deg, rgba(6,11,17,.92), rgba(6,11,17,.62) 72%, rgba(6,11,17,0));
+    border-bottom:1px solid rgba(229,190,103,.16); }
+  #topbar::after { content:""; position:absolute; left:18%; right:18%; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, rgba(94,234,212,.45), rgba(229,190,103,.65), rgba(94,234,212,.45), transparent); pointer-events:none; }
+  #logo { font-size:18px; font-weight:900; letter-spacing:4px;
+    background:linear-gradient(180deg, #fff5d6, #dfb252); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 12px rgba(229,190,103,.38)); }
+  #logo small { display:block; font-size:8px; letter-spacing:3.5px; color:#7fa3b2; font-weight:700; margin-top:1px; }
+  #floorinfo { font-size:12.5px; color:#d0e6ee; background:rgba(9,16,24,.72); border:1px solid rgba(140,210,225,.22);
+    padding:6px 18px; border-radius:999px; backdrop-filter:blur(8px); letter-spacing:1.2px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.4); }
   #floorinfo b { color:#5eead4; }
-  #topright { display:flex; gap:10px; align-items:center; font-size:13px; }
-  .tchip { background:rgba(8,13,18,.55); border:1px solid rgba(255,255,255,.1); padding:6px 12px; border-radius:20px; backdrop-filter:blur(6px); }
-  .tchip b { color:#f0d48a; }
-  #deckbtn { cursor:pointer; } #deckbtn:hover { border-color:rgba(240,212,138,.6); }
+  #topright { display:flex; gap:8px; align-items:center; font-size:12.5px; }
+  .tchip { background:linear-gradient(180deg, rgba(16,26,36,.82), rgba(9,15,22,.88));
+    border:1px solid rgba(255,255,255,.12); padding:6px 12px; border-radius:999px; backdrop-filter:blur(8px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 4px 12px rgba(0,0,0,.35); transition:border-color .16s, transform .14s; }
+  .tchip b { color:#f5d88a; }
+  #deckbtn, #equipbtn, #sfxbtn { cursor:pointer; }
+  #deckbtn:hover, #equipbtn:hover { border-color:rgba(240,212,138,.65); transform:translateY(-1px); }
+  #sfxbtn:hover { border-color:rgba(94,234,212,.65); }
 
-  /* ---------- start screen ---------- */
-  #screen-start { z-index:30; background:radial-gradient(ellipse at 50% 120%, rgba(10,30,34,.25), rgba(3,6,9,.72) 75%); }
-  #startbox { position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); text-align:center; width:760px; }
-  #gametitle { font-size:74px; font-weight:900; letter-spacing:16px; color:#f5e7c1;
-    text-shadow:0 0 44px rgba(216,178,92,.5), 0 4px 0 rgba(90,64,14,.6); }
-  #gamesub { margin-top:8px; font-size:13px; letter-spacing:6px; color:#7fd8c8; }
-  #startdesc { margin:26px auto 0; width:520px; font-size:14px; line-height:1.9; color:#b9ccd6; }
-  .bigbtn { display:inline-block; margin-top:30px; padding:16px 58px; border:none; cursor:pointer; border-radius:14px;
-    font-size:19px; font-weight:900; letter-spacing:5px; color:#231a05;
-    background:linear-gradient(180deg,#ffe9a8,#d8a83e); box-shadow:0 5px 0 #8a6414, 0 14px 30px rgba(0,0,0,.5); }
-  .bigbtn:active { transform:translateY(3px); box-shadow:0 2px 0 #8a6414; }
-  #startrecords { margin-top:26px; font-size:12.5px; color:#8fa3ad; letter-spacing:1px; }
-  #startrecords b { color:#f0d48a; }
+  /* ===== START SCREEN (AAA KEY ART) ===== */
+  #screen-start { z-index:30; overflow:hidden;
+    background:radial-gradient(ellipse at 50% 42%, rgba(14,42,50,.32), rgba(3,6,11,.84) 76%); }
+  .start-art { position:absolute; top:0; bottom:0; width:460px; pointer-events:none; opacity:.44;
+    background-size:cover; background-position:center top; filter:saturate(1.15) contrast(1.06); }
+  #start-art-l { left:-30px; background-image:url('assets/hero.webp');
+    mask-image:linear-gradient(90deg, rgba(0,0,0,.9) 25%, transparent 96%);
+    -webkit-mask-image:linear-gradient(90deg, rgba(0,0,0,.9) 25%, transparent 96%); }
+  #start-art-r { right:-30px; background-image:url('assets/boss-dragon.webp'); opacity:.36;
+    mask-image:linear-gradient(270deg, rgba(0,0,0,.9) 22%, transparent 96%);
+    -webkit-mask-image:linear-gradient(270deg, rgba(0,0,0,.9) 22%, transparent 96%); }
+  #startbox { position:absolute; left:50%; top:49%; transform:translate(-50%,-50%); text-align:center; width:780px; z-index:4; }
+  .title-crest { display:inline-flex; align-items:center; gap:12px; font-size:11px; letter-spacing:5px; color:#7ee8d8;
+    padding:5px 18px; border-radius:999px; background:rgba(12,26,34,.72); border:1px solid rgba(94,234,212,.32); margin-bottom:14px; }
+  #gametitle { font-size:82px; font-weight:900; letter-spacing:18px; padding-left:18px;
+    background:linear-gradient(180deg, #fffbe8 0%, #f5d682 46%, #b88224 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 6px 0 rgba(56,36,6,.85)) drop-shadow(0 0 38px rgba(229,182,78,.45)); }
+  #gamesub { margin-top:8px; font-size:12.5px; letter-spacing:8px; color:#86e2d2; font-weight:700; text-shadow:0 2px 12px rgba(0,0,0,.8); }
+  .title-rule { width:340px; height:1px; margin:18px auto;
+    background:linear-gradient(90deg, transparent, rgba(229,190,103,.85), rgba(94,234,212,.75), rgba(229,190,103,.85), transparent); }
+  #startdesc { margin:0 auto; width:560px; font-size:13.5px; line-height:1.95; color:#c8dae4; text-shadow:0 2px 8px rgba(0,0,0,.85); }
+  .start-features { display:flex; justify-content:center; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .sf-pill { font-size:11px; color:#d8e9f0; padding:4px 12px; border-radius:999px;
+    background:rgba(10,19,28,.75); border:1px solid rgba(229,190,103,.25); letter-spacing:.8px; }
+  .start-actions { display:flex; justify-content:center; gap:18px; margin-top:26px; }
+  #startrecords { margin-top:22px; display:inline-block; padding:8px 22px; border-radius:999px;
+    background:rgba(7,13,20,.72); border:1px solid rgba(255,255,255,.1); font-size:12px; color:#9bb3bf; letter-spacing:1px; }
+  #startrecords b { color:#f5d88a; }
 
-  /* ---------- map screen ---------- */
+  /* ===== MAP SCREEN ===== */
   #screen-map { z-index:15; }
-  #maptitle { position:absolute; top:64px; left:0; right:0; text-align:center; font-size:21px; font-weight:900;
-    letter-spacing:5px; color:#f2e3bb; text-shadow:0 2px 12px rgba(0,0,0,.8); }
-  #mapsub { position:absolute; top:96px; left:0; right:0; text-align:center; font-size:12.5px; color:#9fc4cf; letter-spacing:1px; }
-  #mapsvg { position:absolute; left:50%; top:118px; transform:translateX(-50%); }
-  .node { position:absolute; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%; z-index:5;
-    display:flex; align-items:center; justify-content:center; font-size:25px; cursor:default;
-    background:radial-gradient(circle at 36% 30%, #2b3b48, #121a22 70%); border:2px solid rgba(160,200,220,.35);
-    box-shadow:0 8px 20px rgba(0,0,0,.5); transition:transform .15s; }
-  .node .nlabel { position:absolute; bottom:-17px; left:50%; transform:translateX(-50%); font-size:10px; color:#a9bfc9;
-    white-space:nowrap; letter-spacing:1px; }
-  .node.avail { cursor:pointer; border-color:#f0d48a; animation:nodepulse 1.5s infinite; }
-  .node.avail:hover { transform:scale(1.14); }
-  @keyframes nodepulse { 0%,100%{ box-shadow:0 0 0 0 rgba(240,212,138,.45), 0 8px 20px rgba(0,0,0,.5) } 50%{ box-shadow:0 0 0 10px rgba(240,212,138,0), 0 8px 20px rgba(0,0,0,.5) } }
-  .node.done { opacity:.38; filter:grayscale(.6); }
-  .node.here { border-color:#5eead4; box-shadow:0 0 22px rgba(94,234,212,.65); }
-  .node.elite { border-color:rgba(255,130,90,.6); } .node.boss { border-color:rgba(255,90,90,.75); width:70px; height:70px; margin:-35px 0 0 -35px; font-size:32px; }
-  .node.rest { border-color:rgba(140,230,160,.5); } .node.shop { border-color:rgba(240,212,138,.55); }
+  #maptitle { position:absolute; top:62px; left:0; right:0; text-align:center; font-size:23px; font-weight:900;
+    letter-spacing:6px; background:linear-gradient(180deg, #fff6da, #dfb456); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 3px 12px rgba(0,0,0,.9)); }
+  #mapsub { position:absolute; top:95px; left:0; right:0; text-align:center; font-size:12px; color:#a4cad6; letter-spacing:1.2px; }
+  #mapboard { position:absolute; left:50%; top:122px; transform:translateX(-50%); width:1088px; height:528px;
+    border-radius:18px; background:radial-gradient(ellipse at center, rgba(14,24,34,.72), rgba(7,12,18,.86));
+    border:1px solid rgba(229,190,103,.24); box-shadow:0 24px 60px rgba(0,0,0,.62), inset 0 0 60px rgba(0,0,0,.55); }
+  #mapsvg { position:absolute; left:14px; top:4px; }
+  #mapnodes { position:absolute; left:14px; top:4px; width:1060px; height:520px; z-index:6; }
+  .node { position:absolute; width:56px; height:56px; margin:-28px 0 0 -28px; border-radius:50%; z-index:5;
+    display:flex; align-items:center; justify-content:center; font-size:24px; cursor:default;
+    background:radial-gradient(circle at 35% 28%, #2c4052, #0e1720 72%); border:2px solid rgba(160,205,225,.32);
+    box-shadow:0 8px 20px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.15); transition:transform .16s, box-shadow .16s; }
+  .node .nlabel { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:10px; color:#aec6d2;
+    white-space:nowrap; letter-spacing:1px; text-shadow:0 1px 4px #000; }
+  .node.avail { cursor:pointer; border-color:#f5d57a; animation:nodepulse 1.55s infinite; }
+  .node.avail:hover { transform:scale(1.18); box-shadow:0 0 28px rgba(245,213,122,.72); }
+  @keyframes nodepulse { 0%,100%{ box-shadow:0 0 0 0 rgba(245,213,122,.5), 0 8px 20px rgba(0,0,0,.5) } 50%{ box-shadow:0 0 0 12px rgba(245,213,122,0), 0 8px 20px rgba(0,0,0,.5) } }
+  .node.done { opacity:.36; filter:grayscale(.65); }
+  .node.here { border-color:#5eead4; box-shadow:0 0 26px rgba(94,234,212,.75); }
+  .node.elite { border-color:rgba(255,130,85,.68); }
+  .node.boss { border-color:rgba(255,88,76,.85); width:72px; height:72px; margin:-36px 0 0 -36px; font-size:32px;
+    background:radial-gradient(circle at 35% 30%, #5c1f24, #1c080c 72%); box-shadow:0 0 30px rgba(255,70,55,.45); }
+  .node.rest { border-color:rgba(120,235,165,.55); } .node.shop { border-color:rgba(245,213,122,.6); }
 
-  /* ---------- combat (from sample) ---------- */
-  #enemy { position:absolute; right:120px; top:74px; width:272px; z-index:4; text-align:center; }
-  #enemy.bossmode { right:86px; top:58px; width:330px; }
-  #enemyframe { position:relative; width:272px; height:352px; margin:0 auto;
-    border-radius:136px 136px 18px 18px; border:2px solid rgba(167,139,250,.55);
-    box-shadow:0 0 0 4px rgba(10,8,20,.55), 0 0 44px rgba(139,92,246,.35), inset 0 0 60px rgba(0,0,0,.5); }
-  #enemy.bossmode #enemyframe { width:330px; height:428px; border-radius:165px 165px 20px 20px; border-color:rgba(255,100,90,.6);
-    box-shadow:0 0 0 4px rgba(20,6,6,.55), 0 0 54px rgba(255,80,60,.35); }
+  /* ===== COMBAT ARENA & HUD ===== */
+  #elres { position:absolute; left:50%; top:64px; transform:translateX(-50%); z-index:16;
+    display:none; align-items:center; gap:9px; padding:6px 16px; border-radius:999px;
+    background:linear-gradient(180deg, rgba(16,25,36,.88), rgba(9,14,22,.92));
+    border:1px solid rgba(94,234,212,.42); box-shadow:0 8px 24px rgba(0,0,0,.5), 0 0 18px rgba(94,234,212,.18);
+    font-size:12px; color:#d8eef4; letter-spacing:.8px; backdrop-filter:blur(8px); }
+  #elres.on { display:inline-flex; animation:elpop .28s cubic-bezier(.2,.9,.3,1.2); }
+  @keyframes elpop { from { transform:translateX(-50%) scale(.82); opacity:0; } to { transform:translateX(-50%) scale(1); opacity:1; } }
+  #elres b { color:#ffe598; }
+  #elres .el-hint { color:#7ee8d8; font-size:11px; border-left:1px solid rgba(255,255,255,.15); padding-left:9px; }
+
+  #enemy { position:absolute; right:112px; top:76px; width:278px; z-index:6; text-align:center; }
+  #enemy.bossmode { right:80px; top:60px; width:336px; }
+  #enemyframe { position:relative; width:278px; height:358px; margin:0 auto;
+    border-radius:140px 140px 20px 20px; border:2px solid rgba(229,190,103,.48);
+    box-shadow:0 0 0 4px rgba(8,11,18,.78), 0 0 0 5px rgba(94,234,212,.18), 0 22px 54px rgba(0,0,0,.72), 0 0 46px rgba(139,92,246,.28), inset 0 0 56px rgba(0,0,0,.55);
+    animation:enemyfloat 3.8s ease-in-out infinite; }
+  @keyframes enemyfloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+  #enemy.bossmode #enemyframe { width:336px; height:432px; border-radius:168px 168px 22px 22px; border-color:rgba(255,105,85,.72);
+    box-shadow:0 0 0 4px rgba(24,6,8,.82), 0 0 0 6px rgba(255,95,70,.24), 0 24px 66px rgba(0,0,0,.8), 0 0 60px rgba(255,75,55,.38); }
   #enemyframe .eimg { position:absolute; inset:0; overflow:hidden; border-radius:inherit; }
   #enemyframe .eimg img { width:100%; height:100%; object-fit:cover; object-position:top center; }
   #enemyframe .eimg::after { content:""; position:absolute; inset:0;
-    background:linear-gradient(180deg, rgba(20,10,40,.12), rgba(5,4,12,.38) 82%); }
-  #enemy.shake { animation:eshake .45s; }
-  @keyframes eshake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-13px)} 45%{transform:translateX(10px)} 70%{transform:translateX(-6px)} }
-  #enemyname { position:absolute; top:-15px; left:50%; transform:translateX(-50%); z-index:6; white-space:nowrap;
-    font-size:14.5px; font-weight:800; letter-spacing:2px; color:#efe9ff; padding:6px 18px; border-radius:16px;
-    background:rgba(16,10,30,.85); border:1px solid rgba(167,139,250,.5); box-shadow:0 6px 18px rgba(0,0,0,.5); }
-  #enemyname small { color:#b7a6e8; font-size:9.5px; letter-spacing:2.5px; margin-left:7px; font-weight:600; }
-  #ehpwrap { position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); z-index:6; width:228px; height:17px;
-    background:rgba(5,6,10,.85); border:1px solid rgba(255,255,255,.25); border-radius:9px; overflow:hidden; box-shadow:0 6px 16px rgba(0,0,0,.5); }
-  #enemy.bossmode #ehpwrap { width:280px; }
-  #ehpfill { height:100%; width:100%; background:linear-gradient(90deg,#e0483e,#ff7a5c); transition:width .35s; }
-  #ehptext { position:absolute; inset:0; font-size:11px; line-height:16px; text-align:center; font-weight:700; text-shadow:0 1px 2px #000; }
-  #eblock { position:absolute; bottom:12px; right:10px; z-index:6; display:none; font-size:11.5px; font-weight:800; color:#9fd8ff;
-    background:rgba(20,50,90,.8); border:1px solid rgba(120,190,255,.5); padding:3px 9px; border-radius:11px; }
-  #estatuses { position:absolute; top:26px; left:8px; z-index:6; display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
-  .estatus { font-size:10.5px; font-weight:700; padding:2.5px 8px; border-radius:9px; background:rgba(10,10,18,.78); border:1px solid rgba(255,255,255,.22); }
-  #intent { position:absolute; left:-142px; top:44%; z-index:6; display:inline-flex; align-items:center; gap:6px;
-    padding:6px 13px; border-radius:16px; white-space:nowrap; font-size:12.5px; font-weight:700; backdrop-filter:blur(4px);
-    box-shadow:0 8px 20px rgba(0,0,0,.45); background:rgba(60,16,16,.78); border:1px solid rgba(255,120,100,.45); color:#ffb4a2; }
-  #intent.buff { background:rgba(52,36,8,.8); border-color:rgba(240,212,138,.5); color:#f5ddab; }
-  #intent.debuff { background:rgba(40,14,58,.8); border-color:rgba(190,140,255,.5); color:#ddc2ff; }
-  #intent.defend { background:rgba(16,44,74,.8); border-color:rgba(120,190,255,.5); color:#bfe1ff; }
-  #intent b { color:#fff; font-size:14px; }
+    background:linear-gradient(180deg, rgba(12,18,32,.08), rgba(4,6,12,.45) 84%); }
+  #enemy.shake { animation:eshake .42s; }
+  @keyframes eshake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-14px)} 45%{transform:translateX(11px)} 70%{transform:translateX(-6px)} }
+  #enemyname { position:absolute; top:-16px; left:50%; transform:translateX(-50%); z-index:6; white-space:nowrap;
+    font-size:14px; font-weight:800; letter-spacing:2px; color:#fff5df; padding:6px 18px; border-radius:999px;
+    background:linear-gradient(180deg, rgba(22,20,38,.94), rgba(10,10,20,.96));
+    border:1px solid rgba(229,190,103,.55); box-shadow:0 8px 20px rgba(0,0,0,.6); }
+  #enemyname small { color:#b9b2e0; font-size:9px; letter-spacing:2.4px; margin-left:7px; font-weight:600; }
+  #ehpwrap { position:absolute; bottom:-12px; left:50%; transform:translateX(-50%); z-index:6; width:238px; height:19px;
+    background:rgba(5,7,12,.92); border:1px solid rgba(255,255,255,.26); border-radius:999px; overflow:hidden;
+    box-shadow:0 8px 18px rgba(0,0,0,.65), inset 0 2px 5px rgba(0,0,0,.7); }
+  #enemy.bossmode #ehpwrap { width:290px; }
+  #ehpghost { position:absolute; inset:0; width:100%; background:linear-gradient(90deg,#ffd7a8,#ffffff); opacity:.72; transition:width .7s ease .15s; }
+  #ehpfill { position:relative; height:100%; width:100%; background:linear-gradient(90deg,#c82828,#ff6248 65%,#ff8e6b); transition:width .24s cubic-bezier(.2,.8,.3,1);
+    box-shadow:0 0 12px rgba(255,95,70,.55); }
+  #ehptext { position:absolute; inset:0; font-size:11px; line-height:18px; text-align:center; font-weight:800; text-shadow:0 1px 3px #000; letter-spacing:.5px; }
+  #eblock { position:absolute; bottom:14px; right:10px; z-index:6; display:none; font-size:12px; font-weight:900; color:#bfe6ff;
+    background:linear-gradient(180deg, rgba(26,68,118,.92), rgba(14,36,68,.95)); border:1px solid rgba(130,205,255,.68);
+    padding:4px 10px; border-radius:12px; box-shadow:0 4px 14px rgba(56,160,255,.35); }
+  #estatuses { position:absolute; top:26px; left:8px; z-index:6; display:flex; flex-direction:column; gap:5px; align-items:flex-start; }
+  .estatus { font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; background:rgba(10,12,20,.84);
+    border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(4px); box-shadow:0 4px 10px rgba(0,0,0,.45); }
+  #intent { position:absolute; left:-154px; top:42%; z-index:6; display:inline-flex; align-items:center; gap:6px;
+    padding:7px 14px; border-radius:14px; white-space:nowrap; font-size:12.5px; font-weight:800; backdrop-filter:blur(8px);
+    box-shadow:0 10px 24px rgba(0,0,0,.55); background:linear-gradient(180deg, rgba(72,18,18,.88), rgba(40,10,12,.92));
+    border:1px solid rgba(255,120,100,.52); color:#ffc2b3; }
+  #intent.buff { background:linear-gradient(180deg, rgba(64,44,10,.88), rgba(36,24,6,.92)); border-color:rgba(240,212,138,.58); color:#fae2ad; }
+  #intent.debuff { background:linear-gradient(180deg, rgba(48,18,70,.88), rgba(26,10,42,.92)); border-color:rgba(190,140,255,.58); color:#e2c8ff; }
+  #intent.defend { background:linear-gradient(180deg, rgba(18,52,88,.88), rgba(10,28,50,.92)); border-color:rgba(120,190,255,.58); color:#c4e4ff; }
+  #intent b { color:#fff; font-size:14.5px; }
 
-  #player { position:absolute; left:26px; bottom:196px; z-index:6; display:flex; align-items:center; gap:12px;
-    background:rgba(7,12,17,.68); border:1px solid rgba(140,220,205,.22); border-radius:16px; padding:10px 16px 10px 10px;
-    backdrop-filter:blur(8px); box-shadow:0 10px 30px rgba(0,0,0,.45); }
+  /* ===== POTION BAR (3 TACTICAL SLOTS) ===== */
+  #potionbar { position:absolute; left:24px; bottom:314px; z-index:12; display:flex; gap:8px; align-items:center; }
+  .potslot { position:relative; width:46px; height:46px; border-radius:13px;
+    background:linear-gradient(180deg, rgba(18,30,42,.82), rgba(9,15,22,.9));
+    border:1px solid rgba(140,205,220,.26); display:flex; align-items:center; justify-content:center;
+    font-size:21px; box-shadow:0 8px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08); transition:all .16s ease; }
+  .potslot.filled { cursor:pointer; border-color:rgba(94,234,212,.62);
+    background:radial-gradient(circle at 35% 30%, rgba(40,105,115,.55), rgba(10,20,28,.92)); }
+  .potslot.filled:hover { transform:translateY(-4px) scale(1.08); border-color:#ffe494; box-shadow:0 0 22px rgba(94,234,212,.45); }
+  .potslot.empty { opacity:.42; font-size:13px; color:#6d8796; }
+  .potslot .ptip { display:none; position:absolute; left:0; bottom:54px; width:210px; z-index:45; padding:9px 12px; border-radius:11px;
+    background:rgba(7,12,18,.96); border:1px solid rgba(94,234,212,.55); font-size:11.5px; line-height:1.55; color:#d7ebf0;
+    box-shadow:0 12px 28px rgba(0,0,0,.7); pointer-events:none; }
+  .potslot.filled:hover .ptip { display:block; }
+
+  /* ===== PLAYER HUD ===== */
+  #player { position:absolute; left:24px; bottom:192px; z-index:7; display:flex; align-items:center; gap:12px;
+    background:linear-gradient(165deg, rgba(14,24,34,.84), rgba(7,12,18,.9));
+    border:1px solid rgba(229,190,103,.3); border-radius:16px; padding:10px 16px 10px 10px;
+    backdrop-filter:blur(10px); box-shadow:0 12px 32px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.07); }
   #player.hit { animation:eshake .4s; }
-  #pava { width:62px; height:62px; border-radius:50%; overflow:hidden; border:2px solid #d8b25c; flex:none; box-shadow:0 0 16px rgba(216,178,92,.35); }
+  #pava { width:64px; height:64px; border-radius:50%; overflow:hidden; border:2px solid #e5be67; flex:none;
+    box-shadow:0 0 0 3px rgba(9,14,22,.8), 0 0 20px rgba(229,190,103,.42); }
   #pava img { width:100%; height:100%; object-fit:cover; object-position:top center; }
-  #pinfo { min-width:176px; }
-  #pname { font-size:14.5px; font-weight:800; letter-spacing:1px; }
-  #pname small { color:#8fa3ad; font-weight:600; font-size:11px; margin-left:6px; letter-spacing:2px; }
-  #phpwrap { position:relative; height:15px; margin-top:6px; background:rgba(0,0,0,.6); border-radius:8px; border:1px solid rgba(255,255,255,.18); overflow:hidden; }
-  #phpfill { height:100%; width:90%; background:linear-gradient(90deg,#3ecf6e,#8be04e); transition:width .35s; }
-  #phptext { position:absolute; inset:0; font-size:10.5px; line-height:14px; text-align:center; font-weight:700; text-shadow:0 1px 2px #000; }
-  #pstats { display:flex; gap:7px; margin-top:7px; flex-wrap:wrap; max-width:230px; }
-  .pstat { font-size:11.5px; padding:3px 9px; border-radius:11px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#cfe3ea; }
+  #pinfo { min-width:184px; }
+  #pname { font-size:14.5px; font-weight:800; letter-spacing:1.2px; color:#f7f1de; }
+  #pname small { color:#88b2be; font-weight:600; font-size:10.5px; margin-left:6px; letter-spacing:2px; }
+  #phpwrap { position:relative; height:16px; margin-top:6px; background:rgba(0,0,0,.68); border-radius:999px;
+    border:1px solid rgba(255,255,255,.18); overflow:hidden; }
+  #phpfill { height:100%; width:90%; background:linear-gradient(90deg,#2bb962,#7ae856); transition:width .3s; box-shadow:0 0 12px rgba(80,225,115,.45); }
+  #phptext { position:absolute; inset:0; font-size:10.5px; line-height:15px; text-align:center; font-weight:800; text-shadow:0 1px 2px #000; }
+  #pstats { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; max-width:236px; }
+  .pstat { font-size:11px; padding:3px 9px; border-radius:999px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#d2e7ee; }
   .pstat b { color:#fff; }
-  #blockstat { color:#9fd8ff; border-color:rgba(120,190,255,.4); background:rgba(30,70,120,.35); }
-  .pstat.bad { color:#ffb4a2; border-color:rgba(255,120,100,.45); background:rgba(90,26,20,.35); }
+  #blockstat { color:#a6ddff; border-color:rgba(120,190,255,.45); background:rgba(28,72,126,.42); }
+  .pstat.bad { color:#ffb4a2; border-color:rgba(255,120,100,.48); background:rgba(95,24,20,.42); }
 
-  #energy { position:absolute; left:34px; bottom:38px; z-index:7; width:86px; height:86px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #9ff5e2, #17b898 55%, #0a6e5c);
-    border:3px solid rgba(220,255,248,.75); box-shadow:0 0 30px rgba(46,230,190,.5), inset 0 -8px 18px rgba(0,0,0,.35);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  #energy b { font-size:27px; line-height:1; text-shadow:0 2px 6px rgba(0,0,0,.45); }
-  #energy span { font-size:10px; letter-spacing:2px; opacity:.9; font-weight:700; }
-  #energy.low { filter:grayscale(.55) brightness(.75); box-shadow:0 0 8px rgba(46,230,190,.2); }
-  .pile { position:absolute; bottom:44px; z-index:6; width:64px; text-align:center; font-size:11px; color:#a9bfc9; }
-  .pile .stack { width:46px; height:62px; margin:0 auto 5px; border-radius:7px; position:relative;
-    background:linear-gradient(150deg,#1b2833,#0d141b); border:1.5px solid rgba(150,200,220,.35); }
-  .pile .stack::before { content:""; position:absolute; inset:4px; border:1px solid rgba(150,200,220,.25); border-radius:5px; }
-  #drawpile { left:142px; } #discardpile { right:30px; bottom:150px; }
-  .pile b { color:#fff; font-size:13px; }
-  #endturn { position:absolute; right:30px; bottom:52px; z-index:8; padding:15px 30px; border:none; cursor:pointer;
-    border-radius:14px; font-size:16.5px; font-weight:900; letter-spacing:3px; color:#231a05;
-    background:linear-gradient(180deg,#ffe9a8,#d8a83e); box-shadow:0 5px 0 #8a6414, 0 12px 26px rgba(0,0,0,.5); }
-  #endturn:active { transform:translateY(3px); box-shadow:0 2px 0 #8a6414; }
-  #endturn:disabled { filter:grayscale(.6) brightness(.7); }
+  /* ===== LIQUID CRYSTAL ENERGY ORB & FURY BURST ===== */
+  #energy { position:absolute; left:30px; bottom:36px; z-index:8; width:88px; height:88px; border-radius:50%;
+    background:radial-gradient(circle at 35% 28%, #c7fff4, #18c2a0 52%, #07594c 92%);
+    border:2.5px solid rgba(220,255,248,.85);
+    box-shadow:0 0 0 4px rgba(8,16,22,.8), 0 0 34px rgba(46,230,190,.55), inset 0 -10px 20px rgba(0,0,0,.42);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; }
+  #energy::before { content:""; position:absolute; inset:-18px;
+    background:conic-gradient(from 0deg, transparent 0 40%, rgba(255,255,255,.32) 55%, transparent 70%);
+    animation:orbspin 4.2s linear infinite; pointer-events:none; }
+  @keyframes orbspin { to { transform:rotate(360deg); } }
+  #energy b { position:relative; z-index:2; font-size:29px; line-height:1; text-shadow:0 2px 8px rgba(0,0,0,.55); }
+  #energy span { position:relative; z-index:2; font-size:9.5px; letter-spacing:2.5px; opacity:.95; font-weight:800; }
+  #energy.low { filter:grayscale(.68) brightness(.72); box-shadow:0 0 0 4px rgba(8,16,22,.8), 0 0 10px rgba(46,230,190,.16); }
 
-  #hand { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:9; display:flex; gap:8px; align-items:flex-end; }
-  .card { position:relative; width:146px; height:210px; border-radius:13px; cursor:pointer; flex:none;
-    background:linear-gradient(165deg,#2a3947,#141d26 60%,#0e141b); padding:5px;
-    transition:transform .18s ease, box-shadow .18s ease, filter .18s ease; transform-origin:bottom center;
-    box-shadow:0 10px 24px rgba(0,0,0,.58), 0 0 0 1px rgba(130,220,210,.16); }
-  #hand .card:not(.unplayable) { box-shadow:0 12px 26px rgba(0,0,0,.62), 0 0 16px rgba(94,234,212,.22); }
-  #hand .card.legendary:not(.unplayable) { box-shadow:0 12px 28px rgba(0,0,0,.65), 0 0 22px rgba(255,212,102,.38); }
-  .card:hover { transform:translateY(-30px) scale(1.07) rotate(0deg) !important; z-index:30; box-shadow:0 24px 44px rgba(0,0,0,.7), 0 0 22px rgba(94,234,212,.38); }
-  .card.unplayable { filter:grayscale(.72) brightness(.54); cursor:not-allowed; box-shadow:0 6px 14px rgba(0,0,0,.45); }
-  .card.playing { transition:transform .38s ease, opacity .38s ease; transform:translateY(-190px) scale(1.12) !important; opacity:0; }
-  .card .frame { position:relative; height:100%; border-radius:9px; overflow:hidden; display:flex; flex-direction:column; background:linear-gradient(180deg,#1a232d,#0d1218); }
-  .card.common { border:1.5px solid #77828c; }
-  .card.rare { border:1.5px solid #3f8fd2; box-shadow:0 10px 24px rgba(0,0,0,.55), 0 0 16px rgba(63,143,210,.35); }
-  .card.legendary { background:linear-gradient(165deg,#3a2c10,#191104); }
-  .card.legendary .frame { border:1.5px solid #e9c766; }
-  .card.legendary::before { content:""; position:absolute; inset:-2px; border-radius:14px; z-index:-1;
-    background:conic-gradient(from var(--a,0deg), transparent 0 40%, rgba(255,215,110,.85) 50%, transparent 60% 100%);
-    animation:spin 2.6s linear infinite; }
+  #burstbtn { position:absolute; left:34px; bottom:136px; z-index:8; display:flex; align-items:center; gap:8px;
+    padding:7px 14px 7px 10px; border-radius:999px; cursor:default;
+    background:linear-gradient(180deg, rgba(16,24,34,.9), rgba(9,14,20,.95));
+    border:1px solid rgba(229,190,103,.32); color:#a8bec9; font-size:11.5px; font-weight:800; letter-spacing:.8px;
+    box-shadow:0 8px 20px rgba(0,0,0,.45); transition:all .2s ease; }
+  #burstbtn .bbar { width:62px; height:7px; border-radius:999px; background:rgba(0,0,0,.6); overflow:hidden; border:1px solid rgba(255,255,255,.15); }
+  #burstbtn .bfill { height:100%; width:0%; background:linear-gradient(90deg, #38bdf8, #5eead4, #ffe082); transition:width .35s ease; }
+  #burstbtn.ready { cursor:pointer; color:#fff7da; border-color:#ffe082;
+    background:linear-gradient(180deg, rgba(78,54,12,.92), rgba(38,24,6,.96));
+    box-shadow:0 0 26px rgba(255,210,100,.65), 0 0 0 2px rgba(94,234,212,.4);
+    animation:burstpulse 1.15s ease-in-out infinite alternate; }
+  #burstbtn.ready:hover { transform:scale(1.06); }
+  @keyframes burstpulse { from { box-shadow:0 0 18px rgba(255,210,100,.5); } to { box-shadow:0 0 34px rgba(94,234,212,.85); } }
+
+  .pile { position:absolute; bottom:42px; z-index:7; width:66px; text-align:center; font-size:11px; color:#a9bfc9; }
+  .pile .stack { width:46px; height:62px; margin:0 auto 5px; border-radius:8px; position:relative;
+    background:linear-gradient(155deg,#213242,#0d151e); border:1.5px solid rgba(229,190,103,.35);
+    box-shadow:0 6px 14px rgba(0,0,0,.55), 3px 3px 0 rgba(12,20,28,.85); }
+  .pile .stack::before { content:""; position:absolute; inset:4px; border:1px solid rgba(94,234,212,.25); border-radius:5px; }
+  #drawpile { left:136px; } #discardpile { right:28px; bottom:148px; }
+  .pile b { color:#ffe9a8; font-size:13px; }
+  #endturn { position:absolute; right:26px; bottom:48px; z-index:8; padding:15px 28px; border:1px solid rgba(255,244,200,.7); cursor:pointer;
+    border-radius:13px; font-size:16px; font-weight:900; letter-spacing:3px; color:#231804;
+    background:linear-gradient(180deg,#fff0be,#dfae42 60%,#b98422);
+    box-shadow:0 5px 0 #7a5410, 0 14px 28px rgba(0,0,0,.55); transition:transform .14s, filter .14s; }
+  #endturn:hover:not(:disabled) { filter:brightness(1.08); transform:translateY(-2px); }
+  #endturn:active:not(:disabled) { transform:translateY(3px); box-shadow:0 2px 0 #7a5410; }
+  #endturn:disabled { filter:grayscale(.65) brightness(.65); cursor:not-allowed; }
+
+  /* ===== HAND & 3D HOLOGRAPHIC CARDS + ALL SPECIAL DYNAMIC CARD-FACES ===== */
+  #hand { position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:11; display:flex; gap:8px; align-items:flex-end; perspective:900px; }
+  .card { position:relative; width:146px; height:212px; border-radius:14px; cursor:pointer; flex:none;
+    background:linear-gradient(165deg,#2d3e4f,#121b24 58%,#0a1017); padding:5px;
+    transition:transform .2s cubic-bezier(.2,.85,.3,1), box-shadow .2s ease, filter .18s ease; transform-origin:bottom center;
+    box-shadow:0 12px 26px rgba(0,0,0,.64), 0 0 0 1px rgba(140,215,215,.18); transform-style:preserve-3d; }
+  #hand .card:not(.unplayable) { box-shadow:0 14px 28px rgba(0,0,0,.68), 0 0 16px rgba(94,234,212,.22); }
+  #hand .card.rare:not(.unplayable) { box-shadow:0 14px 28px rgba(0,0,0,.68), 0 0 20px rgba(72,168,255,.38); }
+  #hand .card.fused:not(.unplayable) { box-shadow:0 14px 30px rgba(0,0,0,.72), 0 0 24px rgba(186,120,255,.48); }
+  #hand .card.legendary:not(.unplayable) { box-shadow:0 14px 32px rgba(0,0,0,.74), 0 0 26px rgba(255,212,102,.48); }
+  .card:hover { transform:translateY(-36px) scale(1.1) rotate(0deg) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) !important;
+    z-index:35 !important; box-shadow:0 28px 50px rgba(0,0,0,.78), 0 0 28px rgba(94,234,212,.48) !important; }
+  .card.unplayable { filter:grayscale(.72) brightness(.52); cursor:not-allowed; box-shadow:0 6px 14px rgba(0,0,0,.45); }
+  .card.unplayable:hover { transform:translateY(-8px) scale(1.02) !important; }
+  .card .frame { position:relative; height:100%; border-radius:10px; overflow:hidden; display:flex; flex-direction:column;
+    background:linear-gradient(180deg,#1b2632,#0c1219 72%,#090d13); }
+  .card .foil { position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0; transition:opacity .2s; mix-blend-mode:color-dodge;
+    background:radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.42), rgba(110,240,225,.18) 32%, transparent 65%); }
+  .card:hover .foil { opacity:1; }
+
+  /* Card Rarity & Special Animated Borders */
+  .card.common { border:1.5px solid #6e7f8e; }
+  .card.rare { background:linear-gradient(165deg,#1d3d61,#0d1b2c); border:none; }
+  .card.rare .frame { border:1.5px solid rgba(96,184,255,.8); }
+  .card.rare::before { content:""; position:absolute; inset:-1.5px; border-radius:15px; z-index:-1;
+    background:conic-gradient(from var(--a,0deg), rgba(56,165,255,.25) 0 38%, rgba(125,235,255,.95) 50%, rgba(56,165,255,.25) 62% 100%);
+    animation:spin 3.4s linear infinite; }
+  .card.fused { background:linear-gradient(165deg,#351f58,#140d28 55%,#0e2938); border:none; }
+  .card.fused .frame { border:1.5px solid rgba(210,152,255,.88); }
+  .card.fused::before { content:""; position:absolute; inset:-2px; border-radius:15px; z-index:-1;
+    background:conic-gradient(from var(--a,0deg), #5eead4, #c084fc, #ffd26a, #38bdf8, #5eead4);
+    animation:spin 2.3s linear infinite; }
+  .card.legendary { background:linear-gradient(165deg,#47330e,#1a1103); border:none; }
+  .card.legendary .frame { border:1.5px solid #f4d26a; }
+  .card.legendary::before { content:""; position:absolute; inset:-2.5px; border-radius:15px; z-index:-1;
+    background:conic-gradient(from var(--a,0deg), rgba(255,215,110,.2) 0 32%, #fff6d1 48%, #f5b938 56%, rgba(94,234,212,.6) 64%, rgba(255,215,110,.2) 76% 100%);
+    animation:spin 2.2s linear infinite; }
+  .card.upgraded .frame { box-shadow:inset 0 0 18px rgba(74,222,128,.22); }
+  .card.res-ready { animation:resglow 1.15s ease-in-out infinite alternate; }
+  @keyframes resglow { from { box-shadow:0 12px 26px rgba(0,0,0,.65), 0 0 18px rgba(94,234,212,.55); } to { box-shadow:0 14px 30px rgba(0,0,0,.7), 0 0 30px rgba(255,220,115,.85); } }
   @property --a { syntax:'<angle>'; initial-value:0deg; inherits:false; }
   @keyframes spin { to { --a:360deg; } }
-  .card .uptag { position:absolute; right:-3px; top:-3px; z-index:5; font-size:10px; font-weight:900; color:#062b16;
-    background:linear-gradient(180deg,#a7f3c9,#3ecf6e); border-radius:9px; padding:2.5px 7px; border:1.5px solid #d9ffe9; }
-  .cost { position:absolute; left:-4px; top:-4px; z-index:5; width:34px; height:34px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #a5f3e4, #14b8a6 60%, #0b6e5f); border:2px solid #e6fff9;
-    display:flex; align-items:center; justify-content:center; font-size:16.5px; font-weight:900; color:#04231d; box-shadow:0 3px 10px rgba(0,0,0,.5); }
-  .art { position:relative; height:102px; flex:none; overflow:hidden; background:#0a0e13; }
+
+  /* Card Badges & Cost */
+  .card .uptag { position:absolute; right:-4px; top:-4px; z-index:7; font-size:9.5px; font-weight:900; color:#042412;
+    background:linear-gradient(180deg,#b4f8d2,#34d36a); border-radius:9px; padding:2px 7px; border:1.5px solid #e6fff1;
+    box-shadow:0 3px 10px rgba(52,211,106,.45); }
+  .card .restag { position:absolute; left:50%; top:-11px; transform:translateX(-50%); z-index:8; white-space:nowrap;
+    font-size:9.5px; font-weight:900; letter-spacing:1px; color:#1f1503; padding:2px 8px; border-radius:999px;
+    background:linear-gradient(90deg, #7ef7e4, #ffe494); box-shadow:0 4px 12px rgba(94,234,212,.6); }
+  .cost { position:absolute; left:-5px; top:-5px; z-index:7; width:35px; height:35px; border-radius:50%;
+    background:radial-gradient(circle at 35% 28%, #c7fff4, #14b8a6 58%, #0a6355); border:2px solid #ebfffb;
+    display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:900; color:#04231d;
+    box-shadow:0 4px 12px rgba(0,0,0,.6), 0 0 12px rgba(20,184,166,.45); }
+
+  /* Card Art & Dynamic Special Card-Face Animations */
+  .art { position:relative; height:102px; flex:none; overflow:hidden; background:#090d13; }
   .art img, .art video { width:100%; height:100%; object-fit:cover; display:block; }
-  .art .glyph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:50px; text-shadow:0 4px 22px rgba(0,0,0,.7); }
-  .art .dyn { position:absolute; right:5px; top:5px; z-index:3; font-size:9.5px; font-weight:800; letter-spacing:1px;
-    color:#ffe9a8; background:rgba(30,20,2,.72); border:1px solid rgba(233,199,102,.7); padding:2px 6px; border-radius:8px; }
-  .cname { flex:none; text-align:center; font-size:13.5px; font-weight:800; letter-spacing:1px; padding:6px 3px 2px; color:#f4f7f9; }
-  .ctype { flex:none; text-align:center; font-size:9px; color:#8fa3ad; letter-spacing:2.5px; padding-bottom:4px; }
-  .ctext { flex:1; margin:0 7px 7px; padding:6px 7px; border-radius:7px; background:rgba(255,255,255,.055);
-    border:1px solid rgba(255,255,255,.07); font-size:11px; line-height:1.5; color:#d7e3ea; text-align:center; }
+  .art .glyph { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center; font-size:48px;
+    text-shadow:0 4px 20px rgba(0,0,0,.78); transition:transform .25s ease; }
+  .card.rare .art .glyph, .card.fused .art .glyph { animation:glyphfloat 2.6s ease-in-out infinite; }
+  @keyframes glyphfloat { 0%,100% { transform:translateY(0) scale(1); } 50% { transform:translateY(-4px) scale(1.06); } }
+  .art .dyn { position:absolute; right:5px; top:5px; z-index:4; font-size:9px; font-weight:800; letter-spacing:.8px;
+    color:#fff0ba; background:rgba(28,18,2,.78); border:1px solid rgba(240,204,104,.75); padding:2px 6px; border-radius:8px; backdrop-filter:blur(3px); }
+  .art .dyn.fusebadge { color:#f2ddff; background:rgba(46,16,74,.82); border-color:rgba(210,152,255,.8); }
+  .art .dyn.rarebadge { color:#cdeeff; background:rgba(12,34,62,.78); border-color:rgba(102,194,255,.72); }
+
+  /* Live Elemental Dynamic Overlays inside Special Cards (.art-fx) */
+  .art-fx { position:absolute; inset:0; z-index:3; pointer-events:none; overflow:hidden; }
+  .art-fx.fx-fire::before { content:""; position:absolute; inset:0;
+    background:radial-gradient(ellipse at 50% 105%, rgba(255,115,30,.72), rgba(255,60,15,.18) 54%, transparent 78%);
+    animation:fxpulse 1.5s ease-in-out infinite alternate; }
+  .art-fx.fx-fire::after { content:""; position:absolute; inset:-40% 0 0;
+    background:radial-gradient(circle at 22% 78%, #ffe082 0 2px, transparent 3px),
+               radial-gradient(circle at 65% 86%, #ff9944 0 2.5px, transparent 3.5px),
+               radial-gradient(circle at 44% 68%, #fff3c4 0 1.8px, transparent 3px),
+               radial-gradient(circle at 80% 72%, #ff7733 0 2px, transparent 3px);
+    animation:fxrise 2.2s linear infinite; }
+  .art-fx.fx-bolt::before { content:""; position:absolute; inset:0;
+    background:linear-gradient(125deg, transparent 36%, rgba(160,242,255,.78) 49%, #ffffff 50%, rgba(86,205,255,.65) 52%, transparent 64%);
+    animation:fxbolt 1.9s ease-in-out infinite; }
+  .art-fx.fx-bolt::after { content:""; position:absolute; inset:0;
+    background:radial-gradient(circle at 50% 50%, rgba(90,215,255,.35), transparent 68%);
+    animation:fxpulse .9s ease-in-out infinite alternate; }
+  .art-fx.fx-frost::before { content:""; position:absolute; inset:0;
+    background:radial-gradient(ellipse at 50% 20%, rgba(190,248,255,.45), rgba(56,189,248,.18) 55%, transparent 80%);
+    animation:fxpulse 2.2s ease-in-out infinite alternate; }
+  .art-fx.fx-frost::after { content:""; position:absolute; inset:-30% 0 0;
+    background:radial-gradient(circle at 20% 25%, #e6fcff 0 2px, transparent 3px),
+               radial-gradient(circle at 55% 40%, #bae6fd 0 2.2px, transparent 3.2px),
+               radial-gradient(circle at 82% 20%, #ffffff 0 1.8px, transparent 3px),
+               radial-gradient(circle at 38% 65%, #7dd3fc 0 2px, transparent 3px);
+    animation:fxfall 3.1s linear infinite; }
+  .art-fx.fx-shadow::before { content:""; position:absolute; inset:-35%;
+    background:conic-gradient(from 0deg, transparent 0 40%, rgba(176,112,255,.48) 55%, transparent 72%, rgba(92,42,168,.42) 88%, transparent);
+    animation:orbspin 4.6s linear infinite; }
+  .art-fx.fx-blood::before { content:""; position:absolute; inset:0;
+    background:radial-gradient(circle at 50% 55%, rgba(244,63,94,.52), rgba(136,19,55,.22) 55%, transparent 78%);
+    animation:fxpulse 1.35s ease-in-out infinite alternate; }
+  .art-fx.fx-wind::before { content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(-24deg, transparent 0 18px, rgba(94,234,212,.22) 19px 21px, transparent 22px 44px);
+    animation:fxwind 1.5s linear infinite; }
+  .art-fx.fx-light::before { content:""; position:absolute; inset:-40%;
+    background:conic-gradient(from 0deg, transparent 0 20%, rgba(255,238,170,.38) 25%, transparent 32% 58%, rgba(255,250,220,.34) 64%, transparent 72%);
+    animation:orbspin 6.5s linear infinite; }
+  .art-fx.fx-iron::before { content:""; position:absolute; inset:0;
+    background:linear-gradient(115deg, transparent 34%, rgba(230,248,255,.48) 49%, transparent 62%);
+    transform:translateX(-110%); animation:fxsweep 2.8s ease-in-out infinite; }
+  .art-fx.fx-fused::after { content:""; position:absolute; inset:-30%;
+    background:conic-gradient(from 180deg, transparent 0 30%, rgba(94,234,212,.36) 44%, transparent 56%, rgba(255,212,102,.38) 76%, transparent 90%);
+    animation:orbspin 3.8s linear infinite reverse; }
+  @keyframes fxpulse { from { opacity:.45; transform:scale(.96); } to { opacity:1; transform:scale(1.06); } }
+  @keyframes fxrise { from { transform:translateY(28%); opacity:0; } 25% { opacity:1; } 85% { opacity:.9; } to { transform:translateY(-48%); opacity:0; } }
+  @keyframes fxfall { from { transform:translateY(-35%); opacity:0; } 20% { opacity:1; } to { transform:translateY(52%); opacity:0; } }
+  @keyframes fxbolt { 0%,68%,100% { opacity:0; } 72%,76% { opacity:1; } 74% { opacity:.2; } 80% { opacity:.75; } 86% { opacity:0; } }
+  @keyframes fxwind { from { background-position:0 0; } to { background-position:90px 45px; } }
+  @keyframes fxsweep { 0%,45% { transform:translateX(-120%); } 75%,100% { transform:translateX(120%); } }
+
+  .cname { flex:none; text-align:center; font-size:13px; font-weight:800; letter-spacing:.8px; padding:5px 3px 2px; color:#f6f9fb; }
+  .ctype { flex:none; text-align:center; font-size:8.8px; color:#92aab6; letter-spacing:2px; padding-bottom:4px; }
+  .ctext { flex:1; margin:0 7px 7px; padding:6px 6px; border-radius:7px; background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08); font-size:10.8px; line-height:1.48; color:#dbe7ee; text-align:center; }
   .ctext b { color:#5eead4; } .ctext .dmg { color:#ffb08a; } .ctext .blk { color:#9fd8ff; } .ctext .heal { color:#8be04e; }
   .rgem { position:absolute; left:50%; bottom:-1px; transform:translateX(-50%); width:13px; height:13px; z-index:4;
     clip-path:polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-  .common .rgem { background:#aeb9c2; } .rare .rgem { background:#53a8e8; } .legendary .rgem { background:#f5cf5e; box-shadow:0 0 10px rgba(245,207,94,.8); }
-  .card.big { width:172px; height:248px; cursor:pointer; }
-  .card.big .art { height:124px; } .card.big .cname { font-size:15px; } .card.big .ctext { font-size:12px; }
-  .card.big:hover { transform:translateY(-14px) scale(1.04) !important; }
+  .common .rgem { background:#aeb9c2; } .rare .rgem { background:#53b4ff; box-shadow:0 0 10px rgba(83,180,255,.8); }
+  .fused .rgem { background:#d896ff; box-shadow:0 0 12px rgba(216,150,255,.95); }
+  .legendary .rgem { background:#f5cf5e; box-shadow:0 0 12px rgba(245,207,94,.9); }
+  .card.big { width:174px; height:252px; cursor:pointer; }
+  .card.big .art { height:124px; } .card.big .cname { font-size:15px; } .card.big .ctext { font-size:11.8px; }
+  .card.big:hover { transform:translateY(-14px) scale(1.05) !important; }
 
-  .floatnum { position:absolute; z-index:40; font-size:30px; font-weight:900; pointer-events:none;
-    text-shadow:0 2px 0 rgba(0,0,0,.55), 0 0 18px rgba(255,120,60,.5); animation:floatup 1s ease-out forwards; }
-  @keyframes floatup { 0%{ transform:translateY(0) scale(.7); opacity:0 } 15%{ opacity:1; transform:translateY(-8px) scale(1.15) } 100%{ transform:translateY(-64px) scale(1); opacity:0 } }
   #slash { position:absolute; z-index:35; width:320px; height:320px; right:96px; top:92px; pointer-events:none; opacity:0;
     background:radial-gradient(circle, rgba(94,234,212,.5) 0%, rgba(94,234,212,0) 62%); border-radius:50%; }
   #slash.on { animation:slashfx .45s ease-out; }
   @keyframes slashfx { 0%{ opacity:0; transform:scale(.5) rotate(-14deg) } 30%{ opacity:1 } 100%{ opacity:0; transform:scale(1.25) rotate(8deg) } }
 
-  /* ---------- panels: reward / rest / shop / event / deck / over ---------- */
-  .panelwrap { position:absolute; inset:0; z-index:25; display:none; align-items:center; justify-content:center;
-    background:rgba(3,6,9,.62); backdrop-filter:blur(3px); }
+  /* ===== PANELS & BLESSING ALTAR ===== */
+  .panelwrap { position:absolute; inset:0; z-index:28; display:none; align-items:center; justify-content:center;
+    background:rgba(3,6,11,.74); backdrop-filter:blur(6px); }
   .panelwrap.on { display:flex; }
-  .panel { width:860px; max-height:640px; overflow-y:auto; background:linear-gradient(170deg, rgba(16,24,32,.97), rgba(9,13,18,.97));
-    border:1px solid rgba(140,200,220,.25); border-radius:20px; padding:28px 34px; box-shadow:0 30px 80px rgba(0,0,0,.7); }
-  .panel h2 { font-size:23px; letter-spacing:4px; color:#f2e3bb; text-align:center; }
+  .panel { position:relative; width:880px; max-height:644px; overflow-y:auto;
+    background:linear-gradient(170deg, rgba(16,26,37,.97), rgba(8,13,20,.98));
+    border:1px solid rgba(229,190,103,.32); border-radius:20px; padding:28px 34px;
+    box-shadow:0 32px 90px rgba(0,0,0,.82), inset 0 1px 0 rgba(255,244,200,.14); animation:panelin .22s ease-out; }
+  @keyframes panelin { from { opacity:0; transform:scale(.95) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+  .panel::before { content:""; position:absolute; top:0; left:18%; right:18%; height:2px;
+    background:linear-gradient(90deg, transparent, #e5be67, #5eead4, #e5be67, transparent); }
+  .panel h2 { font-size:23px; letter-spacing:5px; color:#f6e4b4; text-align:center; text-shadow:0 2px 12px rgba(0,0,0,.7); }
   .panel .psub { text-align:center; color:#9fc4cf; font-size:13px; margin-top:7px; }
   .cardrow { display:flex; gap:20px; justify-content:center; margin-top:24px; }
-  .choicebtns { display:flex; gap:14px; justify-content:center; margin-top:24px; }
-  .ghostbtn { padding:11px 26px; border-radius:12px; cursor:pointer; font-size:14px; font-weight:700; letter-spacing:2px;
-    color:#cfe3ea; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2); }
-  .ghostbtn:hover { border-color:rgba(240,212,138,.6); color:#f0d48a; }
-  .goldbtn { padding:11px 26px; border-radius:12px; cursor:pointer; font-size:14px; font-weight:900; letter-spacing:2px;
-    color:#231a05; background:linear-gradient(180deg,#ffe9a8,#d8a83e); border:none; box-shadow:0 3px 0 #8a6414; }
-  .relicget { display:flex; align-items:center; gap:14px; justify-content:center; margin-top:18px; padding:12px 20px;
-    background:rgba(58,44,16,.35); border:1px solid rgba(233,199,102,.45); border-radius:14px; }
-  .relicget .ricon { font-size:32px; } .relicget .rname { font-size:15px; font-weight:800; color:#f5ddab; }
-  .relicget .rdesc { font-size:12px; color:#cbbd93; margin-top:2px; }
+  .choicebtns { display:flex; gap:14px; justify-content:center; margin-top:22px; flex-wrap:wrap; }
+  .blessrow { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-top:24px; }
+  .blesscard { cursor:pointer; text-align:center; padding:22px 16px; border-radius:16px;
+    background:linear-gradient(170deg, rgba(24,38,52,.88), rgba(11,18,27,.95));
+    border:1.5px solid rgba(229,190,103,.3); transition:all .2s ease; box-shadow:0 12px 26px rgba(0,0,0,.45); }
+  .blesscard:hover { transform:translateY(-8px); border-color:#ffe494; box-shadow:0 18px 36px rgba(229,190,103,.24), 0 0 24px rgba(94,234,212,.22); }
+  .blesscard .bicon { font-size:44px; margin-bottom:10px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
+  .blesscard .btitle { font-size:16px; font-weight:900; letter-spacing:2px; color:#fff2cc; }
+  .blesscard .btag { display:inline-block; margin-top:6px; font-size:10.5px; padding:2px 10px; border-radius:999px;
+    background:rgba(94,234,212,.14); border:1px solid rgba(94,234,212,.38); color:#7ef7e4; }
+  .blesscard .bdesc { margin-top:12px; font-size:12.5px; line-height:1.7; color:#c8dce6; }
+
+  .relicget { display:flex; align-items:center; gap:14px; justify-content:center; margin-top:16px; padding:12px 20px;
+    background:linear-gradient(135deg, rgba(64,48,16,.42), rgba(24,18,8,.62));
+    border:1px solid rgba(233,199,102,.48); border-radius:14px; }
+  .relicget .ricon { font-size:30px; } .relicget .rname { font-size:14.5px; font-weight:800; color:#fae3b2; }
+  .relicget .rdesc { font-size:12px; color:#d2c59d; margin-top:2px; }
   .shopitem { text-align:center; }
-  .shopitem .price { margin-top:10px; font-size:14px; font-weight:800; color:#f0d48a; }
+  .shopitem .price { margin-top:10px; font-size:14px; font-weight:800; color:#f5d88a; }
   .shopitem .buybtn { margin-top:7px; padding:7px 22px; border-radius:10px; border:none; cursor:pointer; font-weight:800;
-    background:linear-gradient(180deg,#ffe9a8,#d8a83e); color:#231a05; }
+    background:linear-gradient(180deg,#fff0be,#dca93d); color:#231a05; }
   .shopitem .buybtn:disabled { filter:grayscale(.7) brightness(.6); cursor:not-allowed; }
   .shopitem.sold { opacity:.35; pointer-events:none; }
   .eventbox { text-align:center; padding:6px 30px; }
-  .eventbox .eicon { font-size:54px; } .eventbox .etitle { font-size:19px; font-weight:800; letter-spacing:2px; margin-top:8px; color:#efe9ff; }
-  .eventbox .edesc { margin:12px auto 0; width:560px; font-size:13.5px; line-height:1.85; color:#b9ccd6; }
+  .eventbox .eicon { font-size:54px; } .eventbox .etitle { font-size:20px; font-weight:800; letter-spacing:2px; margin-top:8px; color:#f4ecff; }
+  .eventbox .edesc { margin:12px auto 0; width:560px; font-size:13.5px; line-height:1.85; color:#c2d4de; }
   .deckgrid { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:20px; }
-  .deckgrid .card { width:118px; height:168px; cursor:default; }
+  .deckgrid .card { width:118px; height:170px; cursor:default; }
   .deckgrid .card .art { height:78px; } .deckgrid .card .cname { font-size:12px; } .deckgrid .card .ctext { font-size:10px; padding:5px; }
   .deckgrid .card:hover { transform:none !important; }
   .deckgrid .card.pickable { cursor:pointer; } .deckgrid .card.pickable:hover { transform:translateY(-8px) !important; }
-  #relicbar { position:absolute; left:16px; top:60px; z-index:18; display:flex; flex-direction:column; gap:7px; }
-  .relicslot { width:40px; height:40px; border-radius:11px; background:rgba(10,14,20,.72); border:1px solid rgba(233,199,102,.4);
-    display:flex; align-items:center; justify-content:center; font-size:20px; position:relative; }
-  .relicslot .rtip { display:none; position:absolute; left:48px; top:0; width:190px; z-index:40; padding:9px 11px; border-radius:10px;
-    background:rgba(8,12,17,.95); border:1px solid rgba(233,199,102,.5); font-size:11.5px; line-height:1.55; color:#e8dfc2; }
+  #relicbar { position:absolute; left:16px; top:62px; z-index:18; display:flex; flex-direction:column; gap:7px; }
+  .relicslot { width:40px; height:40px; border-radius:11px; background:rgba(10,16,24,.82); border:1px solid rgba(233,199,102,.45);
+    display:flex; align-items:center; justify-content:center; font-size:20px; position:relative; box-shadow:0 4px 12px rgba(0,0,0,.45); }
+  .relicslot .rtip { display:none; position:absolute; left:48px; top:0; width:196px; z-index:45; padding:9px 11px; border-radius:10px;
+    background:rgba(8,12,18,.96); border:1px solid rgba(233,199,102,.55); font-size:11.5px; line-height:1.55; color:#eee4c8; }
   .relicslot:hover .rtip { display:block; }
-  #toast { position:absolute; left:50%; top:120px; transform:translateX(-50%); z-index:68; padding:10px 24px; border-radius:14px;
-    background:rgba(8,13,18,.9); border:1px solid rgba(94,234,212,.45); color:#c9f5ec; font-size:14px; font-weight:700;
-    letter-spacing:1px; opacity:0; pointer-events:none; transition:opacity .3s; box-shadow:0 12px 30px rgba(0,0,0,.55); }
+  #toast { position:absolute; left:50%; top:112px; transform:translateX(-50%); z-index:68; padding:10px 24px; border-radius:999px;
+    background:rgba(8,15,22,.92); border:1px solid rgba(94,234,212,.52); color:#d3faf1; font-size:13.5px; font-weight:700;
+    letter-spacing:1px; opacity:0; pointer-events:none; transition:opacity .28s; box-shadow:0 12px 30px rgba(0,0,0,.6); }
   #banner { position:absolute; inset:0; z-index:75; display:none; align-items:center; justify-content:center;
-    background:rgba(3,6,9,.78); backdrop-filter:blur(4px); }
+    background:rgba(3,6,10,.82); backdrop-filter:blur(6px); }
   #banner .box { text-align:center; }
-  #banner h1 { font-size:46px; letter-spacing:10px; color:#f2e3bb; text-shadow:0 0 34px rgba(216,178,92,.6); }
-  #banner p { margin-top:12px; color:#b9ccd6; font-size:14.5px; letter-spacing:1px; line-height:1.9; }
-  #mapnodes { position:absolute; left:50%; top:118px; transform:translateX(-50%); width:1060px; height:520px; z-index:6; }
-  #sfxbtn { cursor:pointer; } #sfxbtn:hover { border-color:rgba(94,234,212,.6); }
-  /* ===== camera & crisp rendering ===== */
-  #stage-cam { position:absolute; inset:0; transform-origin:center; z-index:5; }
-  #stage img, #stage video { image-rendering:auto; }
-  /* ===== animation & VFX pack ===== */
+  #banner h1 { font-size:48px; letter-spacing:10px; color:#f6e4b4; text-shadow:0 0 38px rgba(229,190,103,.65); }
+  #banner p { margin-top:14px; color:#c4d6e0; font-size:14.5px; letter-spacing:1px; line-height:1.95; }
+
+  /* ===== VFX & CINEMATICS ===== */
   #fxlayer { position:absolute; inset:0; z-index:36; pointer-events:none; overflow:hidden; }
   #fxcanvas { position:absolute; inset:0; width:1280px; height:720px; z-index:62; pointer-events:none; }
   .burst { position:absolute; width:240px; height:240px; margin:-120px 0 0 -120px; border-radius:50%; opacity:0; pointer-events:none; }
@@ -255,22 +495,26 @@
   #enemy.hitflash .eimg { filter: brightness(2.85) contrast(1.25) saturate(.35) !important; transform: translate(18px,-7px) rotate(2.6deg) scale(.95) !important; transition:none !important; }
   #enemy.hitflash-heavy .eimg { filter: brightness(3.2) contrast(1.35) saturate(.2) drop-shadow(0 0 28px rgba(255,210,130,.95)) !important; transform: translate(26px,-10px) rotate(4deg) scale(.91) !important; transition:none !important; }
   #enemy.dying .eimg { filter: grayscale(1) brightness(.35); opacity:.22; transform: translateY(26px) scale(.94); transition: filter .55s, opacity .55s, transform .55s; }
-  #player.hitflash { filter: brightness(1.8) saturate(1.4); box-shadow:0 0 36px rgba(255,70,50,.85); }
   #hand.drawing .card { animation: drawin .34s cubic-bezier(.2,.9,.3,1.25) both; }
-  #hand.drawing .card:nth-child(2) { animation-delay:.05s; } #hand.drawing .card:nth-child(3) { animation-delay:.1s; }
-  #hand.drawing .card:nth-child(4) { animation-delay:.15s; } #hand.drawing .card:nth-child(5) { animation-delay:.2s; }
-  #hand.drawing .card:nth-child(6) { animation-delay:.25s; } #hand.drawing .card:nth-child(7) { animation-delay:.3s; }
+  #hand.drawing .card:nth-child(2) { animation-delay:.04s; } #hand.drawing .card:nth-child(3) { animation-delay:.08s; }
+  #hand.drawing .card:nth-child(4) { animation-delay:.12s; } #hand.drawing .card:nth-child(5) { animation-delay:.16s; }
+  #hand.drawing .card:nth-child(6) { animation-delay:.2s; } #hand.drawing .card:nth-child(7) { animation-delay:.24s; }
   @keyframes drawin { from { transform: translate(-280px,130px) rotate(-16deg) scale(.55); opacity:0; } }
-  #combochip { position:absolute; left:492px; bottom:206px; z-index:14; padding:5px 14px; border-radius:999px; background:rgba(64,32,8,.78); border:1px solid rgba(255,170,60,.7); color:#ffc48a; font-size:13px; font-weight:800; letter-spacing:1px; box-shadow:0 0 18px rgba(255,140,40,.35); }
-  /* ===== tiered damage numbers ===== */
+  #combochip { position:absolute; left:492px; bottom:236px; z-index:14; padding:5px 15px; border-radius:999px;
+    background:linear-gradient(180deg, rgba(84,42,10,.88), rgba(44,20,5,.92));
+    border:1px solid rgba(255,180,75,.78); color:#ffd099; font-size:13px; font-weight:900; letter-spacing:1.2px;
+    box-shadow:0 0 22px rgba(255,140,40,.42); }
   .floatnum { position:absolute; z-index:66; font-size:32px; font-weight:900; pointer-events:none; white-space:nowrap;
     text-shadow:0 3px 0 rgba(0,0,0,.85), 0 0 18px rgba(255,120,60,.65); letter-spacing:1px; }
   .floatnum.heavy { font-size:44px; text-shadow:0 4px 0 rgba(40,6,0,.92), 0 0 28px rgba(255,180,60,.95), 0 0 8px rgba(255,255,255,.65); }
   .floatnum.crit { font-size:50px; background:linear-gradient(180deg,#fff9d6 15%,#ffd257 52%,#ff6b35 95%); -webkit-background-clip:text; background-clip:text; color:transparent !important;
     filter:drop-shadow(0 4px 0 rgba(35,4,0,.95)) drop-shadow(0 0 22px rgba(255,140,40,.95)); }
+  .floatnum.react { font-size:30px; background:linear-gradient(180deg,#ffffff 10%,#7ef7e4 55%,#ffd257 100%); -webkit-background-clip:text; background-clip:text; color:transparent !important;
+    filter:drop-shadow(0 3px 0 rgba(6,24,28,.95)) drop-shadow(0 0 24px rgba(94,234,212,.9)); }
   .floatnum .ftag { display:block; font-size:11px; letter-spacing:3px; font-weight:900; text-align:center; color:#ffe6a3; text-shadow:0 2px 6px rgba(0,0,0,.95); margin-bottom:-4px; }
   .floatnum.status { font-size:21px; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.9); }
-  /* ===== boss cinematic entrance & ultimate ===== */
+
+  /* ===== BOSS CINEMATIC & LEGENDARY BREAK-OUT ===== */
   .cinebar { position:absolute; left:0; right:0; height:58px; background:#030508; z-index:63; pointer-events:none; transition:transform .38s cubic-bezier(.2,.8,.2,1); }
   #cine-top { top:0; transform:translateY(-100%); border-bottom:1px solid rgba(255,110,80,.28); }
   #cine-bot { bottom:0; transform:translateY(100%); border-top:1px solid rgba(255,110,80,.28); }
@@ -280,8 +524,7 @@
   #boss-veil.on { opacity:1; }
   #introbanner { position:absolute; left:0; right:0; top:225px; z-index:64; text-align:center; opacity:0; pointer-events:none; }
   #introbanner .ib-kicker { font-size:13px; letter-spacing:9px; color:#ffb499; font-weight:800; text-transform:uppercase; text-shadow:0 2px 16px rgba(255,70,40,.85); }
-  #introbanner .ib-name { margin-top:8px; font-size:48px; font-weight:900; letter-spacing:8px; color:#fff7e2;
-    text-shadow:0 4px 0 rgba(55,10,8,.85), 0 0 42px rgba(255,80,45,.85); }
+  #introbanner .ib-name { margin-top:8px; font-size:48px; font-weight:900; letter-spacing:8px; color:#fff7e2; text-shadow:0 4px 0 rgba(55,10,8,.85), 0 0 42px rgba(255,80,45,.85); }
   #introbanner .ib-line { width:0; height:2px; margin:12px auto 10px; background:linear-gradient(90deg, transparent, #ffd27d, #ff6b4a, #ffd27d, transparent); transition:width .48s cubic-bezier(.2,.9,.3,1); }
   #introbanner.on .ib-line { width:460px; }
   #introbanner .ib-sub { font-size:13px; letter-spacing:5px; color:#d8c3a5; font-weight:700; text-shadow:0 2px 10px #000; }
@@ -302,7 +545,6 @@
   #enemy.ulting .eimg { transform: scale(1.48) translate(-34px, 10px); filter: brightness(1.55) contrast(1.15) drop-shadow(0 0 44px rgba(255,60,30,.95)); transition:transform .55s cubic-bezier(.2,.85,.25,1), filter .4s; }
   #hurtvignette { position:absolute; inset:0; z-index:60; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center, transparent 48%, rgba(255,36,24,.58) 100%); }
   #impactflash { position:absolute; inset:0; z-index:65; pointer-events:none; opacity:0; background: radial-gradient(ellipse at center, rgba(255,248,225,.95) 0%, rgba(255,196,90,.48) 44%, transparent 76%); }
-  /* ===== borderless 3D legendary break-out stage ===== */
   #legmoment { position:absolute; inset:0; z-index:58; display:none; align-items:center; justify-content:center; perspective:1100px;
     background:radial-gradient(ellipse at center, rgba(6,12,18,.35), rgba(2,5,9,.88)); cursor:pointer; overflow:hidden; }
   #legmoment.on { display:flex; }
@@ -317,8 +559,7 @@
     background:radial-gradient(ellipse at 50% 44%, transparent 56%, rgba(4,8,13,.42) 86%, rgba(3,6,10,.82) 100%), linear-gradient(180deg, rgba(3,6,10,.45) 0%, transparent 16%, transparent 74%, rgba(3,6,10,.78) 100%); }
   #legtitle { position:absolute; left:54px; bottom:52px; z-index:8; pointer-events:none; opacity:0; text-align:left; }
   #legtitle .lt-tag { font-size:12px; letter-spacing:6px; font-weight:800; color:var(--leg-accent, #ffe299); text-shadow:0 2px 14px rgba(0,0,0,.9); }
-  #legtitle .lt-name { margin-top:4px; font-size:44px; font-weight:900; letter-spacing:5px; color:#ffffff;
-    text-shadow:0 4px 0 rgba(0,0,0,.75), 0 0 34px var(--leg-glow, rgba(255,200,90,.85)); }
+  #legtitle .lt-name { margin-top:4px; font-size:44px; font-weight:900; letter-spacing:5px; color:#ffffff; text-shadow:0 4px 0 rgba(0,0,0,.75), 0 0 34px var(--leg-glow, rgba(255,200,90,.85)); }
   #legtitle .lt-bar { width:260px; height:3px; margin-top:8px; background:linear-gradient(90deg, var(--leg-accent, #ffe299), transparent); box-shadow:0 0 14px var(--leg-glow, rgba(255,200,90,.85)); }
   #legtitle .lt-bond { margin-top:7px; font-size:12.5px; letter-spacing:2px; color:#d7e7ee; text-shadow:0 2px 8px #000; }
   #legskip { position:absolute; right:26px; bottom:22px; z-index:9; font-size:11px; letter-spacing:2px; color:rgba(220,235,245,.55); pointer-events:none; }
@@ -331,16 +572,30 @@
 <div id="stage">
 <div id="stage-cam">
   <div id="acttint"></div>
+  <canvas id="ambientcanvas" width="1280" height="720"></canvas>
 
   <!-- START -->
   <div class="screen on" id="screen-start">
+    <div class="start-art" id="start-art-l"></div>
+    <div class="start-art" id="start-art-r"></div>
     <div id="startbox">
+      <div class="title-crest">✦ 暗黑奇幻构筑肉鸽 · STEAM 旗舰典藏版 ✦</div>
       <div id="gametitle">深渊牌局</div>
       <div id="gamesub">ABYSS · CARD ROGUELIKE</div>
-      <div id="startdesc">构筑你的牌组，穿越深渊三层。<br>每一回合都是一次取舍：进攻，还是活下去。<br>传说卡的卡面，是活的。</div>
-      <button class="bigbtn" id="startbtn">开始冒险</button>
-      <button class="bigbtn" id="endlessbtn" style="margin-left:12px;background:linear-gradient(180deg,#7a4fd0,#4c2a8f);box-shadow:0 10px 30px rgba(124,79,208,.4)">♾️ 无尽刷宝</button>
-      <div style="margin-top:10px;font-size:12px;color:#8fa3ad">无尽刷宝：无限层数连续战斗，每 3 层必掉装备、每 5 层 Boss —— 打到倒下为止，专为刷装备与遗物</div>
+      <div class="title-rule"></div>
+      <div id="startdesc">构筑你的元素牌组，穿越深渊十层。<br>每一回合都是一次博弈：连携元素反应、破盾反击、引爆剑域解放。<br>全特殊卡动态卡面 · 传说英雄无边框破图降临。</div>
+      <div class="start-features">
+        <span class="sf-pill">⚡ 元素共鸣反应</span>
+        <span class="sf-pill">🔥 剑域解放爆发技</span>
+        <span class="sf-pill">🧪 3格战术药水</span>
+        <span class="sf-pill">💥 破防 BREAK 连招</span>
+        <span class="sf-pill">⚗️ 双元素熔炉合成</span>
+      </div>
+      <div class="start-actions">
+        <button class="bigbtn" id="startbtn">⚔️ 开始冒险</button>
+        <button class="bigbtn purple" id="endlessbtn">♾️ 无尽刷宝</button>
+      </div>
+      <div style="margin-top:12px;font-size:11.5px;color:#8faab8">无尽刷宝：无限层数连续激战，每 3 层必掉装备、每 5 层 Boss —— 专为极限构筑而生</div>
       <div id="startrecords"></div>
     </div>
   </div>
@@ -348,24 +603,28 @@
   <!-- MAP -->
   <div class="screen" id="screen-map">
     <div id="maptitle">深渊 · 第 <span id="mapact">1</span> 层</div>
-    <div id="mapsub">选择一条路线，向深渊深处推进 —— ⚔ 战斗 · 🔥 精英 · ❓ 事件 · 🛒 商店 · 🏕 休息 · 👑 Boss</div>
-    <svg id="mapsvg" width="1060" height="520"></svg>
-    <div id="mapnodes"></div>
+    <div id="mapsub">选择一条路线向深渊深处推进 —— ⚔ 战斗 · 🔥 精英 · ❓ 事件 · 🛒 商店 · 🏕 休息 · 👑 Boss</div>
+    <div id="mapboard">
+      <svg id="mapsvg" width="1060" height="520"></svg>
+      <div id="mapnodes"></div>
+    </div>
   </div>
 
   <!-- COMBAT -->
   <div class="screen" id="screen-combat">
+    <div id="elres"></div>
     <div id="enemy">
       <div id="enemyframe">
         <div class="eimg"><img id="enemyimg" src="" alt=""></div>
         <div id="enemyname">敌人<small></small></div>
         <div id="estatuses"></div>
         <div id="eblock">🛡 <span id="eblocknum">0</span></div>
-        <div id="ehpwrap"><div id="ehpfill"></div><div id="ehptext">0 / 0</div></div>
+        <div id="ehpwrap"><div id="ehpghost"></div><div id="ehpfill"></div><div id="ehptext">0 / 0</div></div>
         <span id="intent">⚔ 意图</span>
       </div>
     </div>
     <div id="slash"></div>
+    <div id="potionbar"></div>
     <div id="player">
       <div id="pava"><img src="assets/hero.webp" alt="苍流"></div>
       <div id="pinfo">
@@ -382,6 +641,11 @@
         </div>
       </div>
     </div>
+    <button id="burstbtn" title="怒气满100%点击或按 Q 释放：0费，能量+2、抽2张牌、本回合攻击+4">
+      <span id="bursticon">⚔️</span>
+      <span id="bursttxt">剑域 0%</span>
+      <span class="bbar"><span class="bfill" id="burstfill"></span></span>
+    </button>
     <div id="energy"><b id="energynum">3</b><span>能量</span></div>
     <div id="combochip" style="display:none">连击 ×<b id="combonum">0</b></div>
     <div id="ultbanner"></div>
@@ -401,12 +665,21 @@
       <div class="tchip">❤️ <b id="tb-hp">80/80</b></div>
       <div class="tchip">🪙 <b id="tb-gold">0</b></div>
       <div class="tchip" id="deckbtn">牌组 <b id="tb-deck">11</b></div>
-      <div class="tchip" id="equipbtn" style="cursor:pointer">⚔️ 装备</div>
+      <div class="tchip" id="equipbtn">⚔️ 装备</div>
       <div class="tchip" id="sfxbtn" title="开关音效">🔊</div>
     </div>
   </div>
   <div id="relicbar"></div>
   <div id="toast"></div>
+
+  <!-- BLESSING (START OF RUN 3-CHOICE) -->
+  <div class="panelwrap" id="panel-blessing">
+    <div class="panel" style="width:820px">
+      <h2>✦ 深 渊 祭 坛 · 启 程 祝 福 ✦</h2>
+      <div class="psub">选择本局的初始流派方向，构筑你的专属打法</div>
+      <div class="blessrow" id="blessrow"></div>
+    </div>
+  </div>
 
   <!-- REWARD -->
   <div class="panelwrap" id="panel-reward">
@@ -424,17 +697,17 @@
 
   <!-- REST -->
   <div class="panelwrap" id="panel-rest">
-    <div class="panel" style="width:680px">
+    <div class="panel" style="width:720px">
       <h2>🏕 休 息 点</h2>
       <div class="psub">篝火旁的喘息时间，只能做一件事</div>
-      <div class="choicebtns" style="margin-top:30px">
+      <div class="choicebtns" style="margin-top:28px">
         <button class="goldbtn" id="restheal">🔥 休整：回复 <span id="healamount">24</span> 点生命</button>
         <button class="ghostbtn" id="restupgrade">🔨 锻造：升级一张牌</button>
         <button class="ghostbtn" id="restfuse">⚗️ 熔炉：合成两张牌</button>
       </div>
       <div id="restdeck" style="display:none"><div class="psub" style="margin-top:18px">选择要升级的牌（点一张）</div><div class="deckgrid restgrid"></div></div>
-      <div id="fusedeck" style="display:none"><div class="psub" style="margin-top:18px">选择 <b>两张</b>牌投入熔炉 —— 特定组合有专属合成牌，其余按稀有度跃升</div><div class="deckgrid fusegrid"></div>
-        <div class="choicebtns" style="margin-top:16px"><span id="fusehint" style="align-self:center;color:#9fb4c0;font-size:13px">已选 0 / 2</span><button class="goldbtn" id="fuseconfirm" disabled style="opacity:.45">投入熔炉</button></div></div>
+      <div id="fusedeck" style="display:none"><div class="psub" style="margin-top:18px">选择 <b>两张</b>牌投入熔炉 —— 特定组合有专属合成牌，同元素与相生元素可融合</div><div class="deckgrid fusegrid"></div>
+        <div class="choicebtns" style="margin-top:16px"><span id="fusehint" style="align-self:center;color:#9fb4c0;font-size:13px">已选 0 / 2</span><button class="goldbtn" id="fuseconfirm" disabled>投入熔炉</button></div></div>
     </div>
   </div>
 
@@ -442,10 +715,11 @@
   <div class="panelwrap" id="panel-shop">
     <div class="panel">
       <h2>🛒 深 渊 商 店</h2>
-      <div class="psub">「钱财乃身外之物，命才是。」—— 店主 · 你的金币：<b id="shopgold" style="color:#f0d48a">0</b></div>
+      <div class="psub">「钱财乃身外之物，命才是。」—— 店主 · 你的金币：<b id="shopgold" style="color:#f5d88a">0</b></div>
       <div class="cardrow" id="shopcards"></div>
       <div id="shoprelic"></div>
       <div id="shopequip"></div>
+      <div id="shoppotion"></div>
       <div class="choicebtns">
         <button class="ghostbtn" id="shopremove">🗑 删牌服务（75 金币）</button>
         <button class="goldbtn" id="shopleave">离开商店 →</button>
@@ -456,7 +730,7 @@
 
   <!-- EVENT -->
   <div class="panelwrap" id="panel-event">
-    <div class="panel" style="width:720px">
+    <div class="panel" style="width:740px">
       <div class="eventbox">
         <div class="eicon" id="eventicon">❓</div>
         <div class="etitle" id="eventtitle">未知事件</div>
@@ -575,6 +849,10 @@ const SFX = (() => {
       else if(el === "雷"){ noise(0.2, 3200, 1.1, 0.2); tone(980, 160, 0.16, "sawtooth", 0.11); tone(1420, 320, 0.1, "square", 0.07, 0.05); }
       else if(el === "影" || el === "血"){ tone(180, 58, 0.25, "sawtooth", 0.13); noise(0.18, 820, 1.4, 0.14); }
     },
+    reaction(){ tone(440, 880, 0.18, "triangle", 0.18); tone(660, 1320, 0.24, "sine", 0.16, 0.05); noise(0.22, 2600, 1.1, 0.2, 0.02); },
+    shieldBreak(){ tone(160, 42, 0.32, "sawtooth", 0.28); tone(1120, 480, 0.22, "triangle", 0.16); noise(0.26, 3600, 1.3, 0.28); },
+    furyBurst(){ tone(120, 480, 0.35, "sawtooth", 0.2); tone(523, 1046, 0.36, "triangle", 0.18, 0.06); tone(784, 1568, 0.42, "sine", 0.16, 0.12); noise(0.32, 2200, 0.9, 0.22, 0.04); },
+    potion(){ tone(580, 920, 0.14, "sine", 0.12); tone(880, 1260, 0.18, "triangle", 0.11, 0.06); },
     block(){ if(playCustom("block")) return; tone(420, 620, 0.12, "triangle", 0.12); tone(840, 1120, 0.18, "sine", 0.09, 0.03); },
     blockAbsorb(){ if(playCustom("blockAbsorb")) return; tone(540, 310, 0.16, "triangle", 0.18); tone(1080, 740, 0.14, "sine", 0.1, 0.01); noise(0.09, 2600, 2.4, 0.14); },
     heal(){ if(playCustom("heal")) return; tone(523, 659, 0.18, "sine", 0.11); tone(659, 784, 0.24, "sine", 0.11, 0.07); tone(784, 1046, 0.3, "sine", 0.09, 0.14); },
@@ -596,6 +874,38 @@ const SFX = (() => {
 })();
 $("sfxbtn").addEventListener("click", () => { SFX.toggle(); SFX.click(); });
 
+/* ================= AMBIENT ATMOSPHERE PARTICLES ================= */
+(() => {
+  const cv = $("ambientcanvas"); if(!cv || !cv.getContext) return;
+  const ctx = cv.getContext("2d");
+  const motes = Array.from({ length: 44 }, () => ({
+    x: Math.random() * 1280, y: Math.random() * 720,
+    vx: (Math.random() - 0.5) * 14, vy: -8 - Math.random() * 22,
+    r: 1 + Math.random() * 2.4, a: 0.2 + Math.random() * 0.55, p: Math.random() * 6.28
+  }));
+  let lt = performance.now();
+  function tick(now){
+    const dt = Math.min(0.05, (now - lt) / 1000); lt = now;
+    ctx.clearRect(0, 0, 1280, 720);
+    const isBoss = (typeof C !== "undefined" && C && C.kind === "boss");
+    const colA = isBoss ? "#ff7744" : "#5eead4";
+    const colB = isBoss ? "#ffcc66" : "#f0cf7b";
+    for(let i = 0; i < motes.length; i++){
+      const m = motes[i];
+      m.x += m.vx * dt + Math.sin(now * 0.001 + m.p) * 6 * dt;
+      m.y += m.vy * dt * (isBoss ? 1.8 : 1);
+      if(m.y < -12){ m.y = 732; m.x = Math.random() * 1280; }
+      if(m.x < -12) m.x = 1292; if(m.x > 1292) m.x = -12;
+      const tw = 0.55 + 0.45 * Math.sin(now * 0.0022 + m.p);
+      ctx.globalAlpha = m.a * tw;
+      ctx.fillStyle = i % 2 ? colA : colB;
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2); ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
 /* ================= 60FPS CANVAS VFX ENGINE ================= */
 const FX = (() => {
   const cv = $("fxcanvas"), ctx = cv.getContext("2d");
@@ -605,7 +915,6 @@ const FX = (() => {
   function loop(now){
     const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
     ctx.clearRect(0, 0, 1280, 720);
-    /* radial speed lines */
     for(let i = speedBursts.length - 1; i >= 0; i--){
       const sb = speedBursts[i]; sb.age += dt;
       if(sb.age >= sb.dur){ speedBursts.splice(i, 1); continue; }
@@ -620,7 +929,6 @@ const FX = (() => {
       }
       ctx.restore();
     }
-    /* shockwave rings */
     for(let i = rings.length - 1; i >= 0; i--){
       const r = rings[i]; r.age += dt;
       if(r.age >= r.dur){ rings.splice(i, 1); continue; }
@@ -631,7 +939,6 @@ const FX = (() => {
       ctx.beginPath(); ctx.arc(r.x, r.y, r.r0 + (r.r1 - r.r0) * ease, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
-    /* blade slashes */
     for(let i = slashes.length - 1; i >= 0; i--){
       const s = slashes[i]; s.age += dt;
       if(s.age >= s.dur){ slashes.splice(i, 1); continue; }
@@ -646,7 +953,6 @@ const FX = (() => {
       ctx.beginPath(); ctx.moveTo(-half * 0.82, 0); ctx.quadraticCurveTo(0, -thick * 0.42, half * 0.82, 0); ctx.quadraticCurveTo(0, thick * 0.18, -half * 0.82, 0); ctx.fill();
       ctx.restore();
     }
-    /* lightning bolts */
     for(let i = bolts.length - 1; i >= 0; i--){
       const b = bolts[i]; b.age += dt;
       if(b.age >= b.dur){ bolts.splice(i, 1); continue; }
@@ -656,7 +962,6 @@ const FX = (() => {
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.stroke();
       ctx.restore();
     }
-    /* sparks & embers */
     for(let i = particles.length - 1; i >= 0; i--){
       const p = particles[i]; p.age += dt;
       if(p.age >= p.life){ particles.splice(i, 1); continue; }
@@ -757,7 +1062,6 @@ function hurtVignette(){
   $("hurtvignette").animate([{ opacity: 0.92 }, { opacity: 0 }], { duration: 420, easing: "ease-out" });
 }
 const HERO_THEME = {
-  /* startSec aligned to exact H.264 I-frame (keyframe) timestamps for instant zero-lag decode */
   hero:       { accent:"#5eead4", glow:"rgba(94,234,212,.85)",  startSec:4.0,  objPos:"center 20%", elFx:"slash" },
   phoenix:    { accent:"#ff9447", glow:"rgba(255,120,40,.9)",  startSec:6.04, objPos:"center 22%", elFx:"fire" },
   angel:      { accent:"#ffe28a", glow:"rgba(255,215,105,.9)", startSec:0.0,  objPos:"center 20%", elFx:"heal" },
@@ -786,7 +1090,6 @@ function warmLegendaryVideo(id, fromGesture = false){
     if(lv.readyState >= 1) doSeek(); else lv.addEventListener("loadedmetadata", doSeek, { once: true });
     lv.load();
   }
-  /* On iOS Safari / WeChat, calling play() synchronously inside a tap unlocks the video element */
   if(fromGesture){
     try{
       const pr = lv.play();
@@ -812,6 +1115,7 @@ const irnd = (a,b)=> Math.floor(rnd(a, b+1));
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
+/* ================= CARDS, ELEMENTS, REACTIONS, POTIONS, BLESSINGS ================= */
 const CARDS = {
   strike:  { name:"斩击", type:"攻击", cost:1, rarity:"common", glyph:"⚔️", grad:"linear-gradient(150deg,#31424f,#141d26)", dmg:8, up:{dmg:3} },
   guard:   { name:"铁壁", type:"技能", cost:1, rarity:"common", glyph:"🛡️", grad:"linear-gradient(150deg,#2c3844,#131a21)", block:8, up:{block:3} },
@@ -859,7 +1163,6 @@ const CARDS = {
   siphon:  { name:"噬能", type:"技能", cost:0, rarity:"rare", glyph:"🌀", grad:"linear-gradient(150deg,#3d2b12,#180f04)", energy:2, selfvuln:1, up:{energy:1} },
   mark:    { name:"猎手印记", type:"技能", cost:1, rarity:"common", glyph:"🎯", grad:"linear-gradient(150deg,#40331c,#181106)", vuln:2, draw:1, up:{vuln:1} },
   rebirth: { name:"回生术", type:"技能", cost:1, rarity:"rare", glyph:"🌿", grad:"linear-gradient(150deg,#1f4530,#0a1c12)", heal:8, cleanse:1, up:{heal:4} },
-  /* fused-only cards (never in reward/shop pools) */
   pojun:   { name:"破军斩", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"⚔️", grad:"linear-gradient(150deg,#4a3220,#1d130a)", dmg:21 },
   xuanwu:  { name:"玄武壁", type:"技能", cost:2, rarity:"rare", fused:true, glyph:"🐢", grad:"linear-gradient(150deg,#23403a,#0e1c18)", block:25 },
   jiadun:  { name:"剑盾猛攻", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🛡️", grad:"linear-gradient(150deg,#3c3a24,#17160c)", dmg:12, block:12 },
@@ -885,6 +1188,7 @@ const CARDS = {
   yingdun: { name:"影遁连斩", type:"攻击", cost:2, rarity:"rare", fused:true, glyph:"🥷", grad:"linear-gradient(150deg,#262038,#0c0916)", dmg:12, hits:2, up:{dmg:3} },
 };
 const EL_ICONS = { "铁":"⚔️", "火":"🔥", "冰":"❄️", "雷":"⚡", "风":"🍃", "血":"🩸", "影":"🌑", "光":"✨" };
+const EL_FX_CLASS = { "铁":"fx-iron", "火":"fx-fire", "冰":"fx-frost", "雷":"fx-bolt", "风":"fx-wind", "血":"fx-blood", "影":"fx-shadow", "光":"fx-light" };
 const CARD_ELS = {
   strike:"铁", guard:"铁", dual:"铁", heavy:"铁", bash:"铁", bulwark:"铁", shieldbash:"铁", thornmail:"铁", chargeblade:"铁", aegisretal:"铁", dualcast:"铁",
   windstep:"风", cleave:"风", adrenal:"风", sprint:"风", pounce:"风", dodge:"风", galeforce:"风", swiftstrike:"风", hero:"风",
@@ -899,6 +1203,61 @@ const CARD_ELS = {
   shuangtie:"铁", zhouye:"影", liming:"火", leisha:"影", shuangfeng:"冰", yingdun:"影",
 };
 for(const id of Object.keys(CARDS)) CARDS[id].el = CARD_ELS[id] || "铁";
+
+/* Elemental Combat Reactions */
+const REACTIONS = {
+  "火+风": { name:"🔥 烈焰扩散", color:"#ff9248", hint:"风/火", fn(amp){ const dmg = 6 + amp * 4; dealDamageToEnemy(dmg, false, true, { el:"火", heavy:true, tag:"元素共鸣!" }); C.burn += 2 + amp; } },
+  "冰+雷": { name:"⚡ 超导破甲", color:"#72e6ff", hint:"冰/雷", fn(amp){ C.vuln += 2 + amp; C.energy = Math.min(9, C.energy + 1); floatNum(162, 342, "⚡ 超导 +1 能量", "#72e6ff", { tier:"status" }); } },
+  "影+血": { name:"🩸 噬魂汲取", color:"#fb7185", hint:"影/血", fn(amp){ const dmg = 6 + amp * 4; dealDamageToEnemy(dmg, false, true, { el:"血", heavy:true, tag:"噬魂!" }); healPlayer(5 + amp * 3); floatNum(162, 342, `💚 汲取 +${5 + amp * 3}`, "#8be04e", { tier:"status" }); } },
+  "冰+火": { name:"💥 融化爆裂", color:"#ffd257", hint:"火/冰", fn(amp){ const dmg = 10 + amp * 5; dealDamageToEnemy(dmg, false, true, { el:"火", crit:true, tag:"融化爆裂!" }); } },
+  "风+雷": { name:"🌪 雷暴追击", color:"#5eead4", hint:"雷/风", fn(amp){ C.jifeng += 1 + amp; drawCards(1); floatNum(162, 342, "🌪 追击抽牌 +1", "#5eead4", { tier:"status" }); } },
+  "光+火": { name:"✨ 圣光裁决", color:"#ffe899", hint:"光/火", fn(amp){ C.pblock += 5 + amp * 3; healPlayer(3 + amp * 2); floatNum(162, 342, "✨ 圣光护体", "#ffe899", { tier:"status" }); } },
+  "光+影": { name:"✨ 圣光裁决", color:"#ffe899", hint:"光/影", fn(amp){ C.pblock += 5 + amp * 3; healPlayer(3 + amp * 2); floatNum(162, 342, "✨ 圣光护体", "#ffe899", { tier:"status" }); } },
+  "光+血": { name:"✨ 圣光裁决", color:"#ffe899", hint:"光/血", fn(amp){ C.pblock += 5 + amp * 3; healPlayer(3 + amp * 2); floatNum(162, 342, "✨ 圣光护体", "#ffe899", { tier:"status" }); } },
+  "光+雷": { name:"✨ 圣光裁决", color:"#ffe899", hint:"光/雷", fn(amp){ C.pblock += 5 + amp * 3; healPlayer(3 + amp * 2); floatNum(162, 342, "✨ 圣光护体", "#ffe899", { tier:"status" }); } },
+};
+function reactionFor(elA, elB){
+  if(!elA || !elB || elA === elB) return null;
+  const k = [elA, elB].sort().join("+");
+  return REACTIONS[k] || null;
+}
+function reactionPartners(el){
+  if(!el) return "";
+  const list = [];
+  for(const k of Object.keys(REACTIONS)){
+    const [a, b] = k.split("+");
+    if(a === el) list.push(EL_ICONS[b] + b);
+    else if(b === el) list.push(EL_ICONS[a] + a);
+  }
+  return list.join(" / ");
+}
+
+/* Tactical Potions (3 slots, 0-cost) */
+const POTIONS = {
+  firebomb: { icon:"🔥", name:"烈焰瓶", desc:"造成 12 点火焰伤害并施加 3 层灼烧，同时附着火元素。" },
+  ironbrew: { icon:"🧪", name:"铁壁合剂", desc:"立即获得 14 点格挡。" },
+  swiftpot: { icon:"⚡", name:"迅捷药水", desc:"立即获得 2 点能量并抽 1 张牌。" },
+  holydrop: { icon:"💚", name:"复苏圣水", desc:"回复 18 点生命并净化自身全部负面状态。" },
+  furyvial: { icon:"🩸", name:"狂怒精粹", desc:"本场战斗获得 3 点力量，并增加 30% 剑域怒气。" },
+};
+function givePotion(id){
+  if(!R || R.potions.length >= 3) return null;
+  const pid = id || pick(Object.keys(POTIONS));
+  R.potions.push(pid);
+  renderPotions();
+  return POTIONS[pid];
+}
+
+/* Start-of-run 3-choice Blessings */
+const BLESSINGS = [
+  { id:"blade", icon:"⚔️", title:"剑圣之誓", tag:"连斩爆发流", desc:"所有攻击牌基础伤害 <b>+1</b>，并立即获得 1 张强化 <b>「双连斩+」</b>。",
+    apply(){ R.bless = "blade"; R.deck.push({ id:"dual", up:true }); } },
+  { id:"element", icon:"🔮", title:"元素使徒", tag:"共鸣反应流", desc:"元素共鸣反应效果<b>大幅强化</b>，并立即获得 <b>「寒霜之环」</b> 与 <b>「烈焰风暴」</b>。",
+    apply(){ R.bless = "element"; R.deck.push({ id:"frost", up:false }, { id:"firestorm", up:false }); } },
+  { id:"blood", icon:"🩸", title:"血契行者", tag:"生存构筑流", desc:"最大生命 <b>+15</b>、额外 <b>+80 金币</b>，并获得 1 件随机装备与 1 瓶复苏圣水。",
+    apply(){ R.bless = "blood"; R.maxhp += 15; R.hp += 15; R.gold += 80; giveEquip(randomEquip(1)); givePotion("holydrop"); } },
+];
+
 const FUSION_SPECIFIC = {
   "strike+strike": "pojun", "guard+guard": "xuanwu", "guard+strike": "jiadun",
   "strike+windstep": "jifenglian", "chain+thunder": "tianfa", "blood+vamp": "xuemo",
@@ -972,7 +1331,7 @@ function cardText(inst){ const d = CARDS[inst.id], n = cardNums(inst); const p =
   if(d.execute) p.push(`处刑：敌人生命 ≤30% 时伤害<b>翻倍</b>`);
   if(n.selfvuln) p.push(`自身获得 <b>${n.selfvuln}</b> 层易伤`);
   if(n.cleanse) p.push(`净化自身全部负面状态`);
-  if(d.bond) p.push(`<span style="color:#f5b8d0">💞 羁绊（在牌组中即生效）：${d.bond}</span>`);
+  if(d.bond) p.push(`<span style="color:#f5b8d0">💞 羁绊：${d.bond}</span>`);
   return p.join("<br>"); }
 
 const RELICS = {
@@ -990,40 +1349,24 @@ const RELICS = {
 const hasRelic = id => R && R.relics.includes(id);
 
 const ENEMIES = {
-  shadow: { name:"影袭者", en:"SHADOW STALKER", img:"assets/enemy-shadow.webp", hp:40,
-    moves:[ {t:"atk", v:6}, {t:"atk", v:6}, {t:"atk", v:11} ] },
-  cultist:{ name:"诡面祭司", en:"MASKED CULTIST", img:"assets/enemy-cultist.webp", hp:46,
-    moves:[ {t:"vuln", v:1}, {t:"atk", v:8}, {t:"buff", v:2}, {t:"atk", v:10} ] },
-  wraith: { name:"深渊骑士", en:"ABYSS KNIGHT", img:"assets/enemy-wraith.webp", hp:64,
-    moves:[ {t:"atk", v:12}, {t:"def", v:10}, {t:"atk", v:16} ] },
-  golem:  { name:"深渊魔像", en:"ABYSS GOLEM", img:"assets/enemy-golem.webp", hp:80,
-    moves:[ {t:"atk", v:14}, {t:"def", v:12}, {t:"atk", v:18} ] },
-  warlock:{ name:"深渊术士", en:"ABYSS WARLOCK", img:"assets/enemy-warlock.webp", hp:52,
-    moves:[ {t:"vuln", v:1}, {t:"atk", v:9}, {t:"atk", v:13}, {t:"buff", v:2} ] },
-  lavabeast:{ name:"熔岩魔兽", en:"MAGMA HOUND", img:"assets/enemy-lavabeast.webp", hp:58,
-    moves:[ {t:"atk", v:11}, {t:"atk", v:11}, {t:"burnp", v:3}, {t:"atk", v:15} ] },
+  shadow: { name:"影袭者", en:"SHADOW STALKER", img:"assets/enemy-shadow.webp", hp:40, moves:[ {t:"atk", v:6}, {t:"atk", v:6}, {t:"atk", v:11} ] },
+  cultist:{ name:"诡面祭司", en:"MASKED CULTIST", img:"assets/enemy-cultist.webp", hp:46, moves:[ {t:"vuln", v:1}, {t:"atk", v:8}, {t:"buff", v:2}, {t:"atk", v:10} ] },
+  wraith: { name:"深渊骑士", en:"ABYSS KNIGHT", img:"assets/enemy-wraith.webp", hp:64, moves:[ {t:"atk", v:12}, {t:"def", v:10}, {t:"atk", v:16} ] },
+  golem:  { name:"深渊魔像", en:"ABYSS GOLEM", img:"assets/enemy-golem.webp", hp:80, moves:[ {t:"atk", v:14}, {t:"def", v:12}, {t:"atk", v:18} ] },
+  warlock:{ name:"深渊术士", en:"ABYSS WARLOCK", img:"assets/enemy-warlock.webp", hp:52, moves:[ {t:"vuln", v:1}, {t:"atk", v:9}, {t:"atk", v:13}, {t:"buff", v:2} ] },
+  lavabeast:{ name:"熔岩魔兽", en:"MAGMA HOUND", img:"assets/enemy-lavabeast.webp", hp:58, moves:[ {t:"atk", v:11}, {t:"atk", v:11}, {t:"burnp", v:3}, {t:"atk", v:15} ] },
 };
 const BOSSES = {
-  1:{ name:"虚蚀骑士王", en:"KING OF EROSION", img:"assets/enemy-wraith.webp", hp:115, mech:"erosion", ultName:"虚蚀斩", ultDmg:26,
-    moves:[ {t:"atk", v:14}, {t:"def", v:12}, {t:"atkx", v:10, n:2}, {t:"atk", v:20} ] },
-  2:{ name:"裂芯魔像", en:"COREBREAK GOLEM", img:"assets/enemy-golem.webp", hp:165, mech:"core", ultName:"裂芯重击", ultDmg:30,
-    moves:[ {t:"def", v:15}, {t:"atk", v:16}, {t:"buff", v:2}, {t:"atk", v:22} ] },
-  3:{ name:"深渊巨龙 · 喉", en:"THE ABYSSAL THROAT", img:"assets/boss-dragon.webp", hp:230, mech:"dragon", ultName:"龙焰吐息", ultDmg:24, ultBurn:3,
-    moves:[ {t:"atk", v:18}, {t:"burnp", v:3}, {t:"atkx", v:12, n:2}, {t:"atk", v:26}, {t:"def", v:20} ] },
-  4:{ name:"熔火兽王 · 拉格纳", en:"RAGNAR THE MAGMA KING", img:"assets/enemy-lavabeast.webp", hp:275, mech:"magma", ultName:"熔岩喷发", ultDmg:30, ultBurn:2,
-    moves:[ {t:"atk", v:20}, {t:"burnp", v:3}, {t:"atk", v:25}, {t:"def", v:18} ] },
-  5:{ name:"虚空君主 · 终焉", en:"THE VOID SOVEREIGN", img:"assets/boss-voidlord.webp", hp:340, mech:"void", ultName:"虚空湮灭", ultDmg:34,
-    moves:[ {t:"atk", v:22}, {t:"vuln", v:1}, {t:"atkx", v:13, n:2}, {t:"atk", v:28}, {t:"def", v:22} ] },
-  6:{ name:"熔火兽王 · 真焰", en:"RAGNAR TRUEFLAME", img:"assets/enemy-lavabeast.webp", hp:370, mech:"magma", ultName:"熔岩喷发", ultDmg:32, ultBurn:2,
-    moves:[ {t:"atk", v:24}, {t:"burnp", v:3}, {t:"atk", v:29}, {t:"def", v:22} ] },
-  7:{ name:"虚空君主 · 镜像", en:"THE VOID MIRROR", img:"assets/boss-voidlord.webp", hp:420, mech:"void", ultName:"虚空湮灭", ultDmg:36,
-    moves:[ {t:"atk", v:26}, {t:"vuln", v:1}, {t:"atkx", v:15, n:2}, {t:"atk", v:32}, {t:"def", v:26} ] },
-  8:{ name:"深渊祖龙 · 始祖", en:"THE PROGENITOR", img:"assets/boss-dragon.webp", hp:470, mech:"dragon", ultName:"龙焰吐息", ultDmg:28, ultBurn:4,
-    moves:[ {t:"atk", v:24}, {t:"burnp", v:4}, {t:"atkx", v:14, n:2}, {t:"atk", v:34}, {t:"def", v:26} ] },
-  9:{ name:"焚天魔神 · 伊格尼斯", en:"IGNIS THE WORLD-BURNER", img:"assets/ignis.webp", hp:520, mech:"core", ultName:"焚天灭世", ultDmg:38,
-    moves:[ {t:"atk", v:28}, {t:"burnp", v:3}, {t:"atk", v:36}, {t:"def", v:28} ] },
-  10:{ name:"混沌主宰 · 终焉之喉", en:"THE CHAOS SOVEREIGN", img:"assets/boss-voidlord.webp", hp:580, mech:"chaos", ultName:"混沌湮灭", ultDmg:42,
-    moves:[ {t:"atk", v:30}, {t:"vuln", v:1}, {t:"atkx", v:16, n:2}, {t:"atk", v:38}, {t:"def", v:30} ] },
+  1:{ name:"虚蚀骑士王", en:"KING OF EROSION", img:"assets/enemy-wraith.webp", hp:115, mech:"erosion", ultName:"虚蚀斩", ultDmg:26, moves:[ {t:"atk", v:14}, {t:"def", v:12}, {t:"atkx", v:10, n:2}, {t:"atk", v:20} ] },
+  2:{ name:"裂芯魔像", en:"COREBREAK GOLEM", img:"assets/enemy-golem.webp", hp:165, mech:"core", ultName:"裂芯重击", ultDmg:30, moves:[ {t:"def", v:15}, {t:"atk", v:16}, {t:"buff", v:2}, {t:"atk", v:22} ] },
+  3:{ name:"深渊巨龙 · 喉", en:"THE ABYSSAL THROAT", img:"assets/boss-dragon.webp", hp:230, mech:"dragon", ultName:"龙焰吐息", ultDmg:24, ultBurn:3, moves:[ {t:"atk", v:18}, {t:"burnp", v:3}, {t:"atkx", v:12, n:2}, {t:"atk", v:26}, {t:"def", v:20} ] },
+  4:{ name:"熔火兽王 · 拉格纳", en:"RAGNAR THE MAGMA KING", img:"assets/enemy-lavabeast.webp", hp:275, mech:"magma", ultName:"熔岩喷发", ultDmg:30, ultBurn:2, moves:[ {t:"atk", v:20}, {t:"burnp", v:3}, {t:"atk", v:25}, {t:"def", v:18} ] },
+  5:{ name:"虚空君主 · 终焉", en:"THE VOID SOVEREIGN", img:"assets/boss-voidlord.webp", hp:340, mech:"void", ultName:"虚空湮灭", ultDmg:34, moves:[ {t:"atk", v:22}, {t:"vuln", v:1}, {t:"atkx", v:13, n:2}, {t:"atk", v:28}, {t:"def", v:22} ] },
+  6:{ name:"熔火兽王 · 真焰", en:"RAGNAR TRUEFLAME", img:"assets/enemy-lavabeast.webp", hp:370, mech:"magma", ultName:"熔岩喷发", ultDmg:32, ultBurn:2, moves:[ {t:"atk", v:24}, {t:"burnp", v:3}, {t:"atk", v:29}, {t:"def", v:22} ] },
+  7:{ name:"虚空君主 · 镜像", en:"THE VOID MIRROR", img:"assets/boss-voidlord.webp", hp:420, mech:"void", ultName:"虚空湮灭", ultDmg:36, moves:[ {t:"atk", v:26}, {t:"vuln", v:1}, {t:"atkx", v:15, n:2}, {t:"atk", v:32}, {t:"def", v:26} ] },
+  8:{ name:"深渊祖龙 · 始祖", en:"THE PROGENITOR", img:"assets/boss-dragon.webp", hp:470, mech:"dragon", ultName:"龙焰吐息", ultDmg:28, ultBurn:4, moves:[ {t:"atk", v:24}, {t:"burnp", v:4}, {t:"atkx", v:14, n:2}, {t:"atk", v:34}, {t:"def", v:26} ] },
+  9:{ name:"焚天魔神 · 伊格尼斯", en:"IGNIS THE WORLD-BURNER", img:"assets/ignis.webp", hp:520, mech:"core", ultName:"焚天灭世", ultDmg:38, moves:[ {t:"atk", v:28}, {t:"burnp", v:3}, {t:"atk", v:36}, {t:"def", v:28} ] },
+  10:{ name:"混沌主宰 · 终焉之喉", en:"THE CHAOS SOVEREIGN", img:"assets/boss-voidlord.webp", hp:580, mech:"chaos", ultName:"混沌湮灭", ultDmg:42, moves:[ {t:"atk", v:30}, {t:"vuln", v:1}, {t:"atkx", v:16, n:2}, {t:"atk", v:38}, {t:"def", v:30} ] },
 };
 
 /* ================= RUN STATE ================= */
@@ -1034,7 +1377,7 @@ function renderStartRecords(){ $("startrecords").innerHTML =
   `历史战绩：通关 <b>${REC.wins}</b> 次 · 出征 <b>${REC.runs}</b> 次 · 最深抵达 <b>${REC.best ? "第 " + REC.best + " 层" : "—"}</b>`; }
 renderStartRecords();
 
-function toast(msg, ms=2100){ const t = $("toast"); t.textContent = msg; t.style.opacity = 1;
+function toast(msg, ms=2200){ const t = $("toast"); t.textContent = msg; t.style.opacity = 1;
   clearTimeout(t._h); t._h = setTimeout(()=> t.style.opacity = 0, ms); }
 function showScreen(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
   if(name) $("screen-" + name).classList.add("on"); }
@@ -1084,7 +1427,6 @@ function genMap(act){
       nodes.push({ id: nodes.length, col: c, lane: l, x: colX(c), y: laneY(l), type, next: [], done: false });
     }
   }
-  /* guarantee a shop and an elite per act */
   const mids = nodes.filter(n => n.col >= 2 && n.col <= 4 && n.type === "battle");
   if(mids.length && !nodes.some(n => n.type === "shop")) pick(mids).type = "shop";
   const mids2 = nodes.filter(n => n.col >= 2 && n.col <= 5 && n.type === "battle");
@@ -1097,7 +1439,6 @@ function genMap(act){
     shuffle(cands);
     n.next = cands.slice(0, irnd(1, Math.min(2, cands.length))).map(m => m.id);
   }
-  /* prune unreachable: keep wiring until every node is reachable from col0 */
   for(let pass = 0; pass < 12; pass++){
     const reach = new Set(nodes.filter(n => n.col === 0).map(n => n.id));
     let grew = true;
@@ -1120,7 +1461,7 @@ function renderMap(){
   const svg = $("mapsvg"); let lines = "";
   for(const n of map) for(const nid of n.next){ const m = map[nid];
     const active = R.pos === n.id || (R.pos === null && n.col === 0);
-    lines += `<line x1="${n.x}" y1="${n.y}" x2="${m.x}" y2="${m.y}" stroke="${active ? 'rgba(240,212,138,.55)' : 'rgba(150,190,210,.22)'}" stroke-width="2.5" stroke-dasharray="7 6"/>`; }
+    lines += `<line x1="${n.x}" y1="${n.y}" x2="${m.x}" y2="${m.y}" stroke="${active ? 'rgba(245,215,126,.68)' : 'rgba(140,188,210,.22)'}" stroke-width="${active ? 3 : 2}" stroke-dasharray="7 6"/>`; }
   svg.innerHTML = lines;
   const avail = new Set(R.pos === null ? map.filter(n => n.col === 0).map(n => n.id) : (map[R.pos] ? map[R.pos].next : []));
   $("mapnodes").innerHTML = map.map(n => {
@@ -1128,7 +1469,7 @@ function renderMap(){
     return `<div class="${cls}" data-node="${n.id}" style="left:${n.x}px;top:${n.y}px">${NODE_META[n.type].icon}<span class="nlabel">${NODE_META[n.type].label}</span></div>`;
   }).join("");
   document.querySelectorAll("#mapnodes .node.avail").forEach(el =>
-    el.addEventListener("click", ()=> enterNode(+el.dataset.node)));
+    el.addEventListener("click", ()=> { SFX.click(); enterNode(+el.dataset.node); }));
   $("acttint").style.background = ["", "rgba(60,120,160,.16)", "rgba(130,80,200,.18)", "rgba(200,60,40,.2)", "rgba(255,110,30,.2)", "rgba(120,40,220,.24)", "rgba(255,80,20,.24)", "rgba(90,30,200,.26)", "rgba(220,50,60,.24)", "rgba(255,60,30,.28)", "rgba(160,0,220,.3)"][R.act] || "";
   $("acttint").style.opacity = 1;
 }
@@ -1150,43 +1491,85 @@ function nodeCleared(){
   }
   showScreen("map"); renderMap(); syncTopbar();
 }
+function openBlessing(onDone){
+  const row = $("blessrow"); row.innerHTML = "";
+  BLESSINGS.forEach(b => {
+    const el = document.createElement("div"); el.className = "blesscard";
+    el.innerHTML = `<div class="bicon">${b.icon}</div><div class="btitle">${b.title}</div><span class="btag">${b.tag}</span><div class="bdesc">${b.desc}</div>`;
+    el.addEventListener("click", () => {
+      SFX.buff();
+      b.apply();
+      syncTopbar();
+      closePanels();
+      toast(`✦ 已接受祝福「${b.title}」！`);
+      onDone();
+    });
+    row.appendChild(el);
+  });
+  openPanel("panel-blessing");
+}
 function startRun(endless){
   R = { hp: 80, maxhp: 80, gold: 60, act: 1, pos: null, kills: 0, combats: 0,
-    deck: [], relics: [], map: null, equip: { weapon: null, armor: null, charm: null }, bag: [],
+    deck: [], relics: [], potions: [pick(Object.keys(POTIONS))], bless: null,
+    map: null, equip: { weapon: null, armor: null, charm: null }, bag: [],
     endless: !!endless, efloor: 0 };
   const starter = ["strike","strike","strike","strike","guard","guard","guard","guard","windstep","blood","hero"];
   R.deck = starter.map(id => ({ id, up: false }));
   R.map = genMap(1);
   REC.runs++; REC.best = Math.max(REC.best, 1); saveRec(); renderStartRecords();
   closePanels(); $("banner").style.display = "none";
-  if(R.endless){ syncTopbar(); startEndlessFloor(); toast("♾️ 无尽深渊：活得越久，宝物越好！"); return; }
-  showScreen("map"); renderMap(); syncTopbar();
-  toast("⚔️ 冒险开始！选择路线节点前进");
+  syncTopbar();
+  openBlessing(() => {
+    if(R.endless){ startEndlessFloor(); toast("♾️ 无尽深渊：活得越久，宝物越好！"); return; }
+    showScreen("map"); renderMap(); syncTopbar();
+  });
 }
 function startEndlessFloor(){
   R.efloor++;
   const kind = R.efloor % 5 === 0 ? "boss" : R.efloor % 3 === 0 ? "elite" : "battle";
   startCombat(kind);
 }
-$("startbtn").addEventListener("click", () => { warmLegendaryVideo("hero", true); startRun(false); });
-$("endlessbtn").addEventListener("click", () => { warmLegendaryVideo("hero", true); startRun(true); });
-$("bannerbtn").addEventListener("click", ()=>{ $("banner").style.display = "none"; showScreen("start"); renderStartRecords(); });
-$("deckbtn").addEventListener("click", ()=>{ if(R) openDeckView(); });
+$("startbtn").addEventListener("click", () => { SFX.click(); warmLegendaryVideo("hero", true); startRun(false); });
+$("endlessbtn").addEventListener("click", () => { SFX.click(); warmLegendaryVideo("hero", true); startRun(true); });
+$("bannerbtn").addEventListener("click", ()=>{ SFX.click(); $("banner").style.display = "none"; showScreen("start"); renderStartRecords(); });
+$("deckbtn").addEventListener("click", ()=>{ if(R){ SFX.click(); openDeckView(); } });
 $("deckclose").addEventListener("click", closePanels);
+
+function attachCard3DTilt(el){
+  el.addEventListener("pointermove", e => {
+    const r = el.getBoundingClientRect(); if(!r.width || !r.height) return;
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    el.style.setProperty("--mx", (x * 100).toFixed(1) + "%");
+    el.style.setProperty("--my", (y * 100).toFixed(1) + "%");
+    el.style.setProperty("--rx", ((0.5 - y) * 14).toFixed(1) + "deg");
+    el.style.setProperty("--ry", ((x - 0.5) * 16).toFixed(1) + "deg");
+  });
+  el.addEventListener("pointerleave", () => {
+    el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg");
+  });
+}
+
 function cardEl(inst, opts = {}){
   const d = CARDS[inst.id];
+  const fxCls = EL_FX_CLASS[d.el] || "fx-iron";
+  const isSpecial = d.rarity === "rare" || d.rarity === "legendary" || d.fused;
+  const fxOverlay = (!d.video && isSpecial)
+    ? `<div class="art-fx ${fxCls}${d.fused ? " fx-fused" : ""}"></div>` : "";
+  const badge = d.video ? `<span class="dyn">▶ 动态卡面</span>`
+    : d.fused ? `<span class="dyn fusebadge">⚗️ 融合</span>`
+    : d.rarity === "rare" ? `<span class="dyn rarebadge">✦ 稀有</span>` : "";
   const art = (d.video && !opts.staticArt)
-    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline webkit-playsinline="true" x5-playsinline="true" x5-video-player-type="h5" preload="auto"></video><span class="dyn">▶ 动态卡面</span>`
-    : (d.video && opts.staticArt) ? `<img src="${d.poster}" alt=""><span class="dyn">▶ 动态卡面</span>`
-    : d.art ? `<img src="${d.art}" alt="">`
-    : `<div style="position:absolute;inset:0;background:${d.grad}"></div><span class="glyph">${d.glyph}</span>`;
+    ? `<video src="${d.video}" poster="${d.poster}" autoplay loop muted playsinline webkit-playsinline="true" x5-playsinline="true" x5-video-player-type="h5" preload="auto"></video>${badge}`
+    : (d.video && opts.staticArt) ? `<img src="${d.poster}" alt="">${badge}`
+    : d.art ? `<img src="${d.art}" alt="">${fxOverlay}${badge}`
+    : `<div style="position:absolute;inset:0;background:${d.grad}"></div>${fxOverlay}<span class="glyph">${d.glyph}</span>${badge}`;
   const el = document.createElement("div");
-  el.className = "card " + d.rarity + (opts.big ? " big" : "");
+  el.className = "card " + d.rarity + (d.fused ? " fused" : "") + (inst.up ? " upgraded" : "") + (opts.big ? " big" : "");
   el.innerHTML = `${inst.up ? '<div class="uptag">强化 +</div>' : ""}<div class="cost">${d.cost}</div>
-    <div class="frame"><div class="art">${art}</div>
-    <div class="cname">${d.name}${inst.up ? "+" : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
+    <div class="frame"><div class="foil"></div><div class="art">${art}</div>
+    <div class="cname">${d.name}${inst.up ? "+" : ""}</div><div class="ctype">${d.type} · ${EL_ICONS[d.el] || ""}${d.el || ""} · ${d.fused ? "FUSED" : d.rarity === "legendary" ? "LEGENDARY" : d.rarity === "rare" ? "RARE" : "COMMON"}</div>
     <div class="ctext">${cardText(inst)}</div><div class="rgem"></div></div>`;
-  /* Raw MP4s contain an audio track; browsers block innerHTML autoplay unless muted=true + play() is triggered after DOM attach */
+  attachCard3DTilt(el);
   const vid = el.querySelector("video");
   if(vid){
     vid.muted = true; vid.defaultMuted = true; vid.playsInline = true;
@@ -1205,6 +1588,76 @@ function deckGridInto(container, pickable, onPick){
 }
 function openDeckView(){ $("deckcount").textContent = `共 ${R.deck.length} 张牌`;
   deckGridInto(document.querySelector(".viewgrid"), false); openPanel("panel-deck"); }
+
+/* ================= POTIONS & FURY BURST ================= */
+function renderPotions(){
+  const bar = $("potionbar"); if(!bar || !R) return;
+  bar.innerHTML = "";
+  for(let i = 0; i < 3; i++){
+    const pid = R.potions[i];
+    const slot = document.createElement("div");
+    if(pid && POTIONS[pid]){
+      const p = POTIONS[pid];
+      slot.className = "potslot filled";
+      slot.innerHTML = `${p.icon}<div class="ptip"><b style="color:#ffe494">${p.name}</b>（0费·点击使用）<br>${p.desc}</div>`;
+      slot.addEventListener("click", () => usePotion(i));
+    } else {
+      slot.className = "potslot empty";
+      slot.textContent = "○";
+    }
+    bar.appendChild(slot);
+  }
+}
+function usePotion(idx){
+  if(!C || C.busy || C.over || C.introLock) return;
+  const pid = R.potions[idx]; if(!pid) return;
+  R.potions.splice(idx, 1);
+  SFX.potion();
+  renderPotions();
+  const pp = stagePos($("player").getBoundingClientRect());
+  if(pid === "firebomb"){
+    dealDamageToEnemy(12, false, false, { el:"火", heavy:true, tag:"烈焰瓶!" });
+    C.burn += 3;
+    applyElementalStep("火");
+  } else if(pid === "ironbrew"){
+    C.pblock += 14; SFX.block(); burstOn($("player"), "block");
+    floatNum(pp.x, pp.y - 36, "🛡 格挡 +14", "#9fd8ff", { tier:"status" });
+  } else if(pid === "swiftpot"){
+    C.energy = Math.min(9, C.energy + 2); drawCards(1);
+    FX.shockwave(pp.x, pp.y, "#5eead4", 150, 6, 0.35);
+    floatNum(pp.x, pp.y - 36, "⚡ 能量 +2 · 抽1牌", "#7ef7e4", { tier:"status" });
+  } else if(pid === "holydrop"){
+    healPlayer(18); C.pvuln = 0; C.pweak = 0; C.pburn = 0; SFX.heal(); burstOn($("player"), "heal");
+    floatNum(pp.x, pp.y - 36, "💚 +18 · 净化", "#8be04e", { tier:"status" });
+  } else if(pid === "furyvial"){
+    C.pstr += 3; addFury(30); SFX.buff(); burstOn($("player"), "fire");
+    floatNum(pp.x, pp.y - 36, "🩸 力量 +3 · 怒气 +30%", "#ffb08a", { tier:"status" });
+  }
+  syncCombat();
+  if(C.hp <= 0) winCombat();
+}
+function addFury(n){
+  if(!C) return;
+  C.fury = Math.min(100, (C.fury || 0) + n);
+}
+function triggerFuryBurst(){
+  if(!C || C.busy || C.over || C.introLock || C.fury < 100) return;
+  C.fury = 0;
+  C.energy = Math.min(9, C.energy + 2);
+  C.turnAtkBonus = (C.turnAtkBonus || 0) + 4;
+  SFX.furyBurst();
+  FX.slash(640, 360, "#5eead4", { len: 820, thick: 42, cross: true, dur: 0.42 });
+  FX.shockwave(640, 360, "#ffe082", 520, 10, 0.5);
+  FX.speedlines("#7ef7e4", 0.52, 46, 0.58);
+  impactFlash("rgba(94,234,212,.58)", 0.72, 300);
+  cameraShake(16, 380);
+  cameraZoomPunch(1.045, 280);
+  floatNum(640, 290, "⚔️ 苍流 · 剑域解放！", "#ffe899", { tier:"react", tag:"能量+2 · 抽2牌 · 本回合攻击+4" });
+  drawCards(2);
+  syncCombat();
+}
+$("burstbtn").addEventListener("click", triggerFuryBurst);
+addEventListener("keydown", e => { if(e.code === "KeyQ" && $("screen-combat").classList.contains("on")) triggerFuryBurst(); });
 
 /* ================= COMBAT ================= */
 const WEAK = new URLSearchParams(location.search).has("weak");
@@ -1225,6 +1678,22 @@ function applyBonds(){
   if(ids.has("assassin")){ C.comboEase = 1; got.push("绯·影契"); }
   if(got.length) setTimeout(() => toast("💞 英雄羁绊生效：" + got.join("、")), 400);
 }
+function applyElementalStep(el){
+  if(!C || !el || el === "铁") return;
+  const rx = reactionFor(C.lastEl, el);
+  if(rx){
+    C.lastEl = null;
+    addFury(15);
+    SFX.reaction();
+    const ep = stagePos($("enemyframe").getBoundingClientRect());
+    FX.shockwave(ep.x, ep.y, rx.color, 260, 9, 0.45);
+    FX.sparks(ep.x, ep.y, rx.color, 32, 520);
+    floatNum(ep.x, ep.y - 112, rx.name, rx.color, { tier:"react", tag:"元素共鸣!" });
+    rx.fn(R && R.bless === "element" ? 1 : 0);
+  } else {
+    C.lastEl = el;
+  }
+}
 function startCombat(kind){
   let tpl, hpMul = 1, dmgAdd = Math.min(12, Math.round((R.act - 1) * 1.6));
   if(R.endless){
@@ -1244,6 +1713,7 @@ function startCombat(kind){
     energy: hasRelic("ember") ? 4 : 3, emax: 3, turn: 1,
     pstr: 0, pvuln: 0, pweak: 0, pburn: 0, pblock: 0, busy: false, over: false,
     thorns: equipStats().thorns, jifeng: 0, dual: 0, wolf: 0, combo: 0, playCounts: {}, firstAtkUsed: false,
+    fury: 25, turnAtkBonus: 0, lastEl: null,
     mech: kind === "boss" ? tpl.mech : null, charging: false, mechTurns: 0, move: null, thresholdsUsed: [],
     affix: null, rageUsed: false, burnBonus: 0, regen: 0, bondDraw: 0, comboEase: 0,
     bossRef: kind === "boss" ? tpl : null, introLock: false };
@@ -1257,8 +1727,10 @@ function startCombat(kind){
   $("enemy").classList.remove("dying");
   $("enemy").classList.toggle("bossmode", kind === "boss");
   $("enemyname").innerHTML = `${C.name}<small>${C.en}</small>`;
+  $("ehpghost").style.width = "100%";
   $("tb-where").textContent = R.endless ? `无尽 · 第 ${R.efloor} 层` : kind === "boss" ? "Boss 战" : kind === "elite" ? "精英战" : "战斗";
   showScreen("combat");
+  renderPotions();
   drawCards(5 + (hasRelic("boots") ? 1 : 0) + equipStats().startdraw + (C.bondDraw || 0), true);
   $("hand").classList.add("drawing"); setTimeout(() => $("hand").classList.remove("drawing"), 750);
   syncCombat();
@@ -1339,7 +1811,9 @@ function intentHTML(){
 }
 function syncCombat(){
   if(!C) return;
-  $("ehpfill").style.width = Math.max(0, C.hp / C.maxhp * 100) + "%";
+  const pct = Math.max(0, C.hp / C.maxhp * 100) + "%";
+  $("ehpfill").style.width = pct;
+  $("ehpghost").style.width = pct;
   $("ehptext").textContent = `${Math.max(0, C.hp)} / ${C.maxhp}`;
   $("eblock").style.display = C.block > 0 ? "block" : "none";
   $("eblocknum").textContent = C.block;
@@ -1354,7 +1828,8 @@ function syncCombat(){
   $("phpfill").style.width = Math.max(0, R.hp / R.maxhp * 100) + "%";
   $("phptext").textContent = `${Math.max(0, R.hp)} / ${R.maxhp}`;
   $("blocknum").textContent = C.pblock;
-  $("strstat").style.display = C.pstr > 0 ? "" : "none"; $("strnum").textContent = C.pstr;
+  $("strstat").style.display = (C.pstr + (C.turnAtkBonus || 0)) > 0 ? "" : "none";
+  $("strnum").textContent = C.pstr + (C.turnAtkBonus || 0);
   $("thornstat").style.display = C.thorns > 0 ? "" : "none"; $("thornnum").textContent = C.thorns;
   $("jifengstat").style.display = C.jifeng > 0 ? "" : "none"; $("jifengnum").textContent = C.jifeng;
   $("wolfstat").style.display = C.wolf > 0 ? "" : "none"; $("wolfnum").textContent = C.wolf;
@@ -1366,9 +1841,30 @@ function syncCombat(){
   $("drawnum").textContent = C.deck.length;
   $("discardnum").textContent = C.discard.length;
   $("endturn").disabled = C.busy || C.over;
+  /* Elemental resonance bar */
+  const elr = $("elres");
+  if(C.lastEl){
+    const partners = reactionPartners(C.lastEl);
+    elr.innerHTML = `当前附着：<b>${EL_ICONS[C.lastEl]} ${C.lastEl}</b>` + (partners ? `<span class="el-hint">打出 ${partners} 触发共鸣</span>` : "");
+    elr.classList.add("on");
+  } else { elr.classList.remove("on"); }
+  /* Fury burst button */
+  const bb = $("burstbtn"), f = Math.min(100, C.fury || 0);
+  $("burstfill").style.width = f + "%";
+  $("bursttxt").textContent = f >= 100 ? "剑域解放 [Q]" : `剑域 ${f}%`;
+  bb.classList.toggle("ready", f >= 100 && !C.busy && !C.over);
+  /* Hand playable & resonance highlight */
   document.querySelectorAll("#hand .card").forEach(el => {
     const w = C.hand[+el.dataset.hidx];
-    if(w) el.classList.toggle("unplayable", CARDS[w.inst.id].cost > C.energy || C.busy);
+    if(!w) return;
+    const d = CARDS[w.inst.id];
+    const unplayable = d.cost > C.energy || C.busy;
+    el.classList.toggle("unplayable", unplayable);
+    const canReact = !unplayable && C.lastEl && !!reactionFor(C.lastEl, d.el);
+    el.classList.toggle("res-ready", canReact);
+    let rt = el.querySelector(".restag");
+    if(canReact && !rt){ rt = document.createElement("div"); rt.className = "restag"; rt.textContent = "✦ 共鸣"; el.appendChild(rt); }
+    else if(!canReact && rt){ rt.remove(); }
   });
   syncTopbar();
 }
@@ -1379,7 +1875,7 @@ function renderHand(){
     const el = cardEl(w.inst);
     el.dataset.hidx = i;
     const n = C.hand.length, mid = (n - 1) / 2;
-    el.style.transform = `rotate(${(i - mid) * 3.6}deg) translateY(${Math.abs(i - mid) * 6}px)`;
+    el.style.transform = `rotate(${(i - mid) * 3.4}deg) translateY(${Math.abs(i - mid) * 6}px)`;
     el.style.zIndex = 10 + i;
     el.addEventListener("mouseenter", () => { if(!el.classList.contains("unplayable")) SFX.cardHover(); });
     el.addEventListener("click", () => playCard(i, el));
@@ -1405,7 +1901,7 @@ function floatNum(x, y, txt, color, opts = {}){
   stageCam.appendChild(s);
   const driftX = opts.spread ? rnd(-34, 34) : rnd(-10, 10);
   const peak = opts.tier === "crit" ? 1.52 : opts.tier === "heavy" ? 1.38 : 1.18;
-  const dur = opts.tier === "crit" ? 1150 : opts.tier === "heavy" ? 1050 : 920;
+  const dur = opts.tier === "crit" || opts.tier === "react" ? 1200 : opts.tier === "heavy" ? 1050 : 920;
   s.animate([
     { transform: "translate(-50%, 8px) scale(.45)", opacity: 0 },
     { transform: `translate(calc(-50% + ${driftX * 0.35}px), -18px) scale(${peak})`, opacity: 1, offset: 0.16 },
@@ -1415,14 +1911,19 @@ function floatNum(x, y, txt, color, opts = {}){
 }
 function dealDamageToEnemy(amount, isAttack, raw, fxOpts = {}){
   let d = amount;
-  if(isAttack){ d += C.pstr + (hasRelic("whet") ? 1 : 0) + equipStats().atk; if(C.pweak > 0) d = Math.floor(d * 0.75); }
+  if(isAttack){
+    d += C.pstr + (C.turnAtkBonus || 0) + (hasRelic("whet") ? 1 : 0) + (R && R.bless === "blade" ? 1 : 0) + equipStats().atk;
+    if(C.pweak > 0) d = Math.floor(d * 0.75);
+  }
   const isVulnAmp = !raw && C.vuln > 0;
   if(isVulnAmp) d = Math.floor(d * 1.5);
   d = Math.max(0, d);
   const totalShown = d;
+  const hadBlock = C.block > 0;
   const absorbed = Math.min(C.block, d); C.block -= absorbed; d -= absorbed;
+  const brokeShield = hadBlock && C.block === 0 && totalShown > 0;
   C.hp -= d;
-  const isCrit = !!(fxOpts.crit || (totalShown >= 18) || (isVulnAmp && totalShown >= 13));
+  const isCrit = !!(fxOpts.crit || (totalShown >= 18) || (isVulnAmp && totalShown >= 13) || brokeShield);
   const isHeavy = isCrit || totalShown >= 12 || !!fxOpts.heavy;
   const ep = stagePos($("enemyframe").getBoundingClientRect());
   hitStop(isCrit ? 95 : isHeavy ? 68 : 44, $("enemy"), isHeavy);
@@ -1442,6 +1943,13 @@ function dealDamageToEnemy(amount, isAttack, raw, fxOpts = {}){
   floatNum(ep.x, ep.y - 52, "-" + totalShown, isCrit ? "#ffe699" : "#ffb08a", {
     tier: isCrit ? "crit" : isHeavy ? "heavy" : "", tag, spread: 42
   });
+  if(brokeShield && C.hp > 0){
+    C.vuln += 2;
+    C.energy = Math.min(9, C.energy + 1);
+    SFX.shieldBreak();
+    FX.shockwave(ep.x, ep.y, "#ffe082", 310, 10, 0.46);
+    floatNum(ep.x, ep.y - 118, "💥 破防 BREAK!", "#ffe899", { tier:"react", tag:"敌人易伤+2 · 能量+1" });
+  }
   bossThresholdCheck();
   if(isAttack && C.affix && C.affix.id === "thorns" && C.hp > 0 && R.hp > 0){
     damagePlayerRaw(3); floatNum(168, 415, "🌵 荆棘 -3", "#b8ffc9", { tier: "status", spread: 20 }); SFX.playerHit(); }
@@ -1484,6 +1992,7 @@ function enemyHitPlayer(base, opts = {}){
   const pp = stagePos($("player").getBoundingClientRect());
   if(d > 0){
     damagePlayerRaw(d);
+    addFury(15);
     hitStop(opts.ult ? 95 : 55, $("player"), !!opts.ult);
     $("player").classList.remove("hit"); void $("player").offsetWidth; $("player").classList.add("hit");
     burstOn($("player"), "slash");
@@ -1511,14 +2020,18 @@ function burstAt(x, y, type){ const b = document.createElement("div"); b.classNa
   b.style.left = x + "px"; b.style.top = y + "px"; $("fxlayer").appendChild(b);
   requestAnimationFrame(() => b.classList.add("go")); setTimeout(() => b.remove(), 520); }
 function burstOn(el, type){ const p = stagePos(el.getBoundingClientRect()); burstAt(p.x, p.y, type); }
-function screenShake(){ cameraShake(8.5, 280); }
-function screenShakeBig(){ cameraShake(19, 440); }
 function impactFlash(color, alpha = 0.85, duration = 300){
   const f = $("impactflash");
   f.style.background = color ? `radial-gradient(ellipse at center, ${color} 0%, transparent 74%)`
     : "radial-gradient(ellipse at center, rgba(255,248,225,.95) 0%, rgba(255,196,90,.48) 44%, transparent 76%)";
   f.animate([ { opacity: alpha }, { opacity: 0 } ], { duration, easing: "ease-out" }); }
 function impactFx(inst){ const d = CARDS[inst.id], n = cardNums(inst);
+  if(d.fused){
+    const ep = stagePos($("enemyframe").getBoundingClientRect());
+    FX.shockwave(ep.x, ep.y, "#d896ff", 280, 9, 0.46);
+    FX.speedlines("rgba(216,150,255,.65)", 0.38, 30, 0.45);
+    impactFlash("rgba(200,130,255,.45)", 0.55, 240);
+  }
   if(n.dmg){ const t = d.el === "火" ? "fire" : d.el === "雷" ? "bolt" : d.el === "冰" ? "frost" : "slash";
     burstOn($("enemyframe"), t); }
   else if(n.block){ burstOn($("player"), "block"); SFX.block(); }
@@ -1527,7 +2040,7 @@ function impactFx(inst){ const d = CARDS[inst.id], n = cardNums(inst);
   else if(n.summon || n.str || n.jifeng || n.dual || n.thorns){ burstOn($("player"), "frost"); SFX.buff(); } }
 function flyCard(node, inst, targetEl, done){
   SFX.cardPlay();
-  const c = cardEl(inst); c.classList.add("flycard");
+  const c = cardEl(inst, { staticArt: true }); c.classList.add("flycard");
   const from = stagePos(node.getBoundingClientRect());
   const to = stagePos(targetEl.getBoundingClientRect());
   c.style.left = (from.x - 64) + "px"; c.style.top = (from.y - 91) + "px";
@@ -1570,7 +2083,6 @@ function showLegendaryMoment(inst, done){
   $("legname").textContent = d.name;
   $("legbond").textContent = d.bond ? `💞 羁绊 · ${d.bond}` : "";
   skipHint.textContent = "点击任意处跳过";
-  /* rebuild card inside wrap while keeping #legcrack (staticArt avoids duplicate competing video download) */
   wrap.innerHTML = "";
   wrap.appendChild(cardEl(inst, { big: true, staticArt: true }));
   wrap.appendChild(crack);
@@ -1603,7 +2115,6 @@ function showLegendaryMoment(inst, done){
   lm.addEventListener("click", skip);
   addEventListener("keydown", onKey);
   if(d.video){
-    /* CRITICAL FOR iOS/MOBILE: Start lv.play() SYNCHRONOUSLY inside user click gesture! */
     const fullSrc = new URL(d.video, location.href).href;
     if(lv.src !== fullSrc){ _warmedVid = d.video; lv.src = d.video; }
     const seekHalf = () => {
@@ -1615,7 +2126,6 @@ function showLegendaryMoment(inst, done){
     };
     if(lv.readyState >= 1) seekHalf(); else lv.addEventListener("loadedmetadata", seekHalf, { once: true });
     try{ lv.play().catch(() => {}); }catch(e){}
-    /* Phase 1: Card zoom & energy crack buildup (0 -> 420ms) */
     wrap.animate([
       { transform: "scale(.85) translateY(60px)", opacity: 0 },
       { transform: "scale(1.55) translateY(0) rotate(-1.5deg)", opacity: 1, offset: 0.45 },
@@ -1624,7 +2134,6 @@ function showLegendaryMoment(inst, done){
     ], { duration: 420, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
     crack.animate([{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "scale(1.15)" }], { duration: 410, fill: "forwards" });
     FX.sparks(640, 360, th.accent, 18, 240, { g: -80 });
-    /* Phase 2: Borderless 3D break-out at 420ms — pure GPU transform (no clip-path on iOS video) */
     let climaxScheduled = false;
     const scheduleClimax = () => {
       if(finished || climaxScheduled) return; climaxScheduled = true;
@@ -1660,14 +2169,12 @@ function showLegendaryMoment(inst, done){
       FX.embers(th.accent, 38);
       impactFlash(th.glow, 0.72, 220);
       cameraShake(14, 340);
-      /* Shatter & vanish card frame completely */
       cancelAnims(wrap, crack);
       wrap.animate([
         { transform: "scale(1.58)", opacity: 1, filter: "brightness(2.2)" },
         { transform: "scale(2.45)", opacity: 0, filter: "brightness(3)" }
       ], { duration: 240, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" });
       timers.push(setTimeout(() => { wrap.style.visibility = "hidden"; }, 245));
-      /* Full-bleed borderless 3D breakout using GPU transform (100% iOS Safari / Mobile compatible) */
       stage2.classList.add("on");
       cancelAnims(stage2, lv);
       stage2.animate([
@@ -1681,14 +2188,12 @@ function showLegendaryMoment(inst, done){
         { transform: "scale(1.14)", filter: "brightness(1.12) contrast(1.08)" }
       ], { duration: 2200, easing: "cubic-bezier(.22,.62,.32,1)", fill: "forwards" });
       if(lv.paused) try{ lv.play().catch(() => {}); }catch(e){}
-      /* Wait briefly if slow mobile network is still buffering, otherwise start 2.15s climax timer right away */
       if(lv.readyState >= 3) scheduleClimax();
       else {
         lv.addEventListener("playing", scheduleClimax, { once: true });
         lv.addEventListener("timeupdate", scheduleClimax, { once: true });
         timers.push(setTimeout(scheduleClimax, 2200));
       }
-      /* Sleek cinematic hero nameplate (bottom-left, unobstructed face) */
       timers.push(setTimeout(() => {
         if(finished) return;
         cancelAnims(titleBox);
@@ -1700,7 +2205,6 @@ function showLegendaryMoment(inst, done){
         ], { duration: 1900, easing: "cubic-bezier(.2,.85,.3,1)", fill: "forwards" });
       }, 120));
     }, 420));
-    /* Hard safety cap (5.5s max) so it can never hang under any network condition */
     timers.push(setTimeout(finishAll, 5500));
   } else if(d.poster){
     ch.src = d.poster;
@@ -1739,6 +2243,7 @@ function playCard(hidx, node){
     C.hand.splice(C.hand.indexOf(w), 1); C.discard.push(w);
     const eq = equipStats();
     C.playCounts[w.inst.id] = (C.playCounts[w.inst.id] || 0) + 1;
+    addFury((d.rarity === "legendary" || d.fused) ? 22 : 12);
     let dealt = 0;
     if(n.block){ const b = n.block + eq.blk; C.pblock += b; SFX.block(); floatNum(162, 396, "🛡 格挡 +" + b, "#9fd8ff", { tier: "status", spread: 16 }); }
     const finishRest = () => {
@@ -1760,6 +2265,7 @@ function playCard(hidx, node){
       if(n.energy) C.energy = Math.min(9, C.energy + n.energy);
       if(n.selfdmg){ damagePlayerRaw(n.selfdmg); SFX.playerHit(); floatNum(162, 405, "-" + n.selfdmg, "#ff9a8a", { tier: "status" }); }
       if(n.draw) drawCards(n.draw);
+      if(C.hp > 0 && R.hp > 0) applyElementalStep(d.el);
       C.combo++;
       renderHand(); C.busy = false; syncCombat();
       if(C.hp <= 0) winCombat();
@@ -1782,7 +2288,8 @@ function playCard(hidx, node){
         const isLast = h === hits - 1;
         dealt += dealDamageToEnemy(per + (h === 0 ? jf + firstBonus : 0), true, false, {
           el: d.el, pitch: 1 + h * 0.14, ang: -0.75 + (h % 2) * 1.1,
-          crit: isExec || (d.rarity === "legendary" && isLast), heavy: d.rarity === "legendary" || isExec,
+          crit: isExec || (d.rarity === "legendary" && isLast) || (d.fused && isLast),
+          heavy: d.rarity === "legendary" || d.fused || isExec,
           tag: isExec ? "处刑!" : (hits > 1 && isLast ? `${hits}连击!` : "")
         });
         if(eq.burnhit && C.hp > 0) C.burn += eq.burnhit;
@@ -1829,6 +2336,7 @@ function endTurn(){
   if(!C || C.busy || C.over || C.introLock) return;
   SFX.click();
   C.busy = true;
+  C.turnAtkBonus = 0;
   C.discard.push(...C.hand); C.hand = [];
   if(C.pvuln > 0) C.pvuln--; if(C.pweak > 0) C.pweak--;
   renderHand(); syncCombat();
@@ -1889,25 +2397,28 @@ function winCombat(){
   const eqHeal = equipStats().afterheal; if(eqHeal) healPlayer(eqHeal);
   const goldBase = C.kind === "boss" ? 110 : C.kind === "elite" ? irnd(42, 58) : irnd(22, 38);
   const gold = gainGold(goldBase);
-  let relic = null, equipDrop = null;
+  let relic = null, equipDrop = null, potDrop = null;
   if(C.kind === "elite"){ relic = giveRelic(randomRelic(false));
     if(Math.random() < 0.65) equipDrop = giveEquip(randomEquip(2)); }
   if(C.kind === "boss"){ relic = giveRelic(R.relics.includes("dragonheart") ? randomRelic(false) : "dragonheart") || giveRelic(randomRelic(false));
     equipDrop = giveEquip(randomEquip(3)) || giveEquip(randomEquip(2)); }
+  if(R.potions.length < 3 && Math.random() < (C.kind === "battle" ? 0.4 : 0.85)) potDrop = givePotion();
   if(R.endless && R.efloor % 3 === 0 && !equipDrop)
     equipDrop = giveEquip(randomEquip(Math.min(3, 1 + Math.floor(R.efloor / 6))));
   if(R.endless) $("rewardsub").dataset.endless = "1";
   if(C.kind === "boss"){ const bh = Math.round(R.maxhp * 0.15); if(bh > 0) setTimeout(() => { healPlayer(bh); toast(`👑 击破 Boss，恢复 ${bh} 点生命`); }, 350); }
   $("rewardtitle").textContent = C.kind === "boss" ? "👑 Boss 击破！" : C.kind === "elite" ? "🔥 精英击破！" : "⚔️ 战 斗 胜 利";
-  $("rewardsub").innerHTML = `获得 <b style="color:#f0d48a">${gold} 金币</b> —— 选择一张牌加入你的牌组`;
+  $("rewardsub").innerHTML = `获得 <b style="color:#f5d88a">${gold} 金币</b> —— 选择一张牌加入你的牌组`;
   $("rewardrelic").innerHTML = (relic
     ? `<div class="relicget"><div class="ricon">${relic.icon}</div><div><div class="rname">获得遗物：${relic.name}</div><div class="rdesc">${relic.desc}</div></div></div>` : "")
     + (equipDrop
-    ? `<div class="relicget" style="margin-top:10px"><div class="ricon">${equipDrop.icon}</div><div><div class="rname">获得装备：${equipDrop.name}（${SLOT_NAMES[equipDrop.slot]}）</div><div class="rdesc">${equipDrop.desc} —— 已放入背包，点顶栏「⚔️ 装备」穿戴</div></div></div>` : "");
+    ? `<div class="relicget" style="margin-top:10px"><div class="ricon">${equipDrop.icon}</div><div><div class="rname">获得装备：${equipDrop.name}（${SLOT_NAMES[equipDrop.slot]}）</div><div class="rdesc">${equipDrop.desc} —— 已放入背包</div></div></div>` : "")
+    + (potDrop
+    ? `<div class="relicget" style="margin-top:10px;border-color:rgba(94,234,212,.55)"><div class="ricon">${potDrop.icon}</div><div><div class="rname">获得战术药水：${potDrop.name}</div><div class="rdesc">${potDrop.desc}</div></div></div>` : "");
   const row = $("rewardcards"); row.innerHTML = "";
   rollRewardCards(C.kind === "boss" ? 0.22 : 0).forEach(inst => {
     const el = cardEl(inst, { big: true });
-    el.addEventListener("click", () => { R.deck.push(inst); syncTopbar(); finishReward(); });
+    el.addEventListener("click", () => { SFX.coin(); R.deck.push(inst); syncTopbar(); finishReward(); });
     row.appendChild(el);
   });
   $("rewardskip").style.display = ""; $("rewardgo").style.display = "none";
@@ -1917,7 +2428,7 @@ function rollRewardCards(legendBoost){
   const out = [], usedTypes = new Set();
   while(out.length < 3){
     const r = Math.random();
-    const rarity = r < 0.08 + legendBoost ? "legendary" : r < 0.38 ? "rare" : "common";
+    const rarity = r < 0.08 + legendBoost ? "legendary" : r < 0.42 ? "rare" : "common";
     const pool = Object.keys(CARDS).filter(id => CARDS[id].rarity === rarity && !CARDS[id].fused);
     const id = pick(pool);
     if(usedTypes.has(id) && Math.random() < 0.7) continue;
@@ -1927,8 +2438,8 @@ function rollRewardCards(legendBoost){
 }
 function finishReward(){ $("rewardskip").style.display = "none"; $("rewardcards").innerHTML = "";
   $("rewardsub").textContent = "已加入牌组。"; $("rewardgo").style.display = ""; }
-$("rewardskip").addEventListener("click", () => { gainGold(15); finishReward(); $("rewardsub").textContent = "跳过选牌，+15 金币。"; });
-$("rewardgo").addEventListener("click", () => { closePanels(); C = null;
+$("rewardskip").addEventListener("click", () => { SFX.coin(); gainGold(15); finishReward(); $("rewardsub").textContent = "跳过选牌，+15 金币。"; });
+$("rewardgo").addEventListener("click", () => { SFX.click(); closePanels(); C = null;
   if(R.endless){ startEndlessFloor(); } else { nodeCleared(); } });
 function loseCombat(){ if(C) C.over = true; SFX.defeat(); gameOver(false); }
 function gameOver(won){
@@ -1975,13 +2486,13 @@ function updateFuseBar(){
     const a = R.deck[fuseSel[0]].id, b = R.deck[fuseSel[1]].id;
     const res = fusionResult(a, b);
     if(res){
-      $("fusehint").innerHTML = `已选 2 / 2 —— ${EL_ICONS[CARDS[a].el]}${CARDS[a].el} + ${EL_ICONS[CARDS[b].el]}${CARDS[b].el} 共鸣！将合成：<b style="color:#ffd76a">${CARDS[res.id].name}</b>（${CARDS[res.id].rarity === "legendary" ? "传说" : CARDS[res.id].rarity === "rare" ? "稀有" : "普通"}）`;
-      btn.disabled = false; btn.style.opacity = 1;
+      $("fusehint").innerHTML = `已选 2 / 2 —— ${EL_ICONS[CARDS[a].el]}${CARDS[a].el} + ${EL_ICONS[CARDS[b].el]}${CARDS[b].el} 共鸣！将合成：<b style="color:#ffd76a">${CARDS[res.id].name}</b>（${CARDS[res.id].rarity === "legendary" ? "传说" : "融合稀有"}）`;
+      btn.disabled = false;
     } else {
       $("fusehint").innerHTML = `✖ 无共鸣：${EL_ICONS[CARDS[a].el]}${CARDS[a].el} 与 ${EL_ICONS[CARDS[b].el]}${CARDS[b].el} 元素不合，无法合成。<br><span style="color:#8fa3ad">规则：同元素必成 · 特定配方 · 相生元素对（火风/冰雷/血影/血火/雷风/冰铁/光影/火光/雷影/冰风）</span>`;
-      btn.disabled = true; btn.style.opacity = .45;
+      btn.disabled = true;
     }
-  } else { $("fusehint").innerHTML = `已选 ${fuseSel.length} / 2 —— <span style="color:#8fa3ad">合成规则：同元素必成 · 特定配方 · 相生元素对</span>`; btn.disabled = true; btn.style.opacity = .45; }
+  } else { $("fusehint").innerHTML = `已选 ${fuseSel.length} / 2 —— <span style="color:#8fa3ad">合成规则：同元素必成 · 特定配方 · 相生元素对</span>`; btn.disabled = true; }
 }
 $("fuseconfirm").addEventListener("click", () => {
   if(fuseSel.length !== 2) return;
@@ -1989,14 +2500,13 @@ $("fuseconfirm").addEventListener("click", () => {
   const res = fusionResult(R.deck[j].id, R.deck[i].id);
   const nameA = CARDS[R.deck[i].id].name, nameB = CARDS[R.deck[j].id].name;
   R.deck.splice(i, 1); R.deck.splice(j, 1);
-  R.deck.push(res); syncTopbar();
+  R.deck.push(res); syncTopbar(); SFX.reaction();
   toast(`⚗️ ${nameA} + ${nameB} 熔炼成了「${CARDS[res.id].name}」！`);
   closePanels(); nodeCleared();
 });
-/* ---- equip panel ---- */
 function equipCardHTML(id, equipped){
   const e = EQUIP[id];
-  return `<div class="relicget equipitem" data-eq="${id}" style="cursor:pointer;margin:0;min-width:190px;${equipped ? "border-color:rgba(240,212,138,.75)" : ""}">
+  return `<div class="relicget equipitem" data-eq="${id}" style="cursor:pointer;margin:0;min-width:190px;${equipped ? "border-color:rgba(240,212,138,.78)" : ""}">
     <div class="ricon">${e.icon}</div><div style="text-align:left"><div class="rname">${e.name} <span style="color:#8fa3ad;font-size:11px">${SLOT_NAMES[e.slot]} · ${["","普通","精良","史诗"][e.tier]}</span></div>
     <div class="rdesc">${e.desc}</div></div></div>`;
 }
@@ -2016,14 +2526,14 @@ function renderEquip(){
       R.equip[slot] = id; R.bag.splice(i, 1); renderEquip(); syncTopbar(); toast(`⚔️ 装备了「${EQUIP[id].name}」`); });
     bag.appendChild(d.firstChild); });
 }
-$("equipbtn").addEventListener("click", () => { if(R){ renderEquip(); openPanel("panel-equip"); } });
+$("equipbtn").addEventListener("click", () => { if(R){ SFX.click(); renderEquip(); openPanel("panel-equip"); } });
 $("equipclose").addEventListener("click", closePanels);
-$("restheal").addEventListener("click", () => { const h = restHealAmount(); healPlayer(h);
+$("restheal").addEventListener("click", () => { const h = restHealAmount(); healPlayer(h); SFX.heal();
   toast(`🔥 休整完毕，回复 ${h} 点生命`); closePanels(); nodeCleared(); });
 $("restupgrade").addEventListener("click", () => {
   $("restdeck").style.display = "block";
   deckGridInto(document.querySelector(".restgrid"), "upgrade", i => {
-    R.deck[i].up = true; toast(`🔨 「${CARDS[R.deck[i].id].name}」已升级！`);
+    R.deck[i].up = true; SFX.buff(); toast(`🔨 「${CARDS[R.deck[i].id].name}」已升级！`);
     closePanels(); nodeCleared(); });
 });
 let shopState = null;
@@ -2038,30 +2548,40 @@ function openShop(){
     const pr = document.createElement("div"); pr.className = "price"; pr.textContent = `🪙 ${price}`; wrap.appendChild(pr);
     const btn = document.createElement("button"); btn.className = "buybtn"; btn.textContent = "购买";
     btn.disabled = R.gold < price;
-    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; R.deck.push(inst);
+    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; R.deck.push(inst); SFX.coin();
       wrap.classList.add("sold"); toast(`🛒 买下了「${CARDS[inst.id].name}」`); syncTopbar(); refreshShop(); });
     wrap.appendChild(btn); row.appendChild(wrap);
   });
   const rid = randomRelic(false);
-  $("shoprelic").innerHTML = rid ? "" : "";
+  $("shoprelic").innerHTML = "";
   if(rid){ const price = irnd(150, 190); const r = RELICS[rid];
-    const box = document.createElement("div"); box.className = "relicget"; box.style.marginTop = "20px";
+    const box = document.createElement("div"); box.className = "relicget"; box.style.marginTop = "18px";
     box.innerHTML = `<div class="ricon">${r.icon}</div><div style="text-align:left"><div class="rname">${r.name}</div><div class="rdesc">${r.desc}</div></div>
-      <button class="buybtn" style="margin-left:auto;padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:800;background:linear-gradient(180deg,#ffe9a8,#d8a83e);color:#231a05">🪙 ${price} 购买</button>`;
+      <button class="buybtn" style="margin-left:auto;padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:800;background:linear-gradient(180deg,#fff0be,#dca93d);color:#231a05">🪙 ${price} 购买</button>`;
     const btn = box.querySelector("button"); btn.disabled = R.gold < price;
-    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; giveRelic(rid);
+    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; giveRelic(rid); SFX.coin();
       box.style.opacity = .35; btn.disabled = true; toast(`🛒 买下了遗物「${r.name}」`); syncTopbar(); refreshShop(); });
-    $("shoprelic").appendChild(box); shopState.relicBox = box; }
+    $("shoprelic").appendChild(box); }
   const eid = randomEquip(3);
   $("shopequip").innerHTML = "";
   if(eid){ const e = EQUIP[eid]; const price = [0, 90, 140, 210][e.tier];
-    const box = document.createElement("div"); box.className = "relicget"; box.style.marginTop = "12px";
+    const box = document.createElement("div"); box.className = "relicget"; box.style.marginTop = "10px";
     box.innerHTML = `<div class="ricon">${e.icon}</div><div style="text-align:left"><div class="rname">${e.name} <span style="color:#8fa3ad;font-size:11px">${SLOT_NAMES[e.slot]} · ${["","普通","精良","史诗"][e.tier]}</span></div><div class="rdesc">${e.desc}</div></div>
-      <button class="buybtn" style="margin-left:auto;padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:800;background:linear-gradient(180deg,#ffe9a8,#d8a83e);color:#231a05">🪙 ${price} 购买</button>`;
+      <button class="buybtn" style="margin-left:auto;padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:800;background:linear-gradient(180deg,#fff0be,#dca93d);color:#231a05">🪙 ${price} 购买</button>`;
     const btn = box.querySelector("button"); btn.disabled = R.gold < price;
-    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; giveEquip(eid);
-      box.style.opacity = .35; btn.disabled = true; toast(`🛒 买下了装备「${e.name}」（在顶栏装备面板穿戴）`); syncTopbar(); refreshShop(); });
+    btn.addEventListener("click", () => { if(R.gold < price) return; R.gold -= price; giveEquip(eid); SFX.coin();
+      box.style.opacity = .35; btn.disabled = true; toast(`🛒 买下了装备「${e.name}」`); syncTopbar(); refreshShop(); });
     $("shopequip").appendChild(box); }
+  const pid = pick(Object.keys(POTIONS));
+  $("shoppotion").innerHTML = "";
+  if(pid){ const p = POTIONS[pid], price = 45;
+    const box = document.createElement("div"); box.className = "relicget"; box.style.marginTop = "10px"; box.style.borderColor = "rgba(94,234,212,.45)";
+    box.innerHTML = `<div class="ricon">${p.icon}</div><div style="text-align:left"><div class="rname">战术药水 · ${p.name}</div><div class="rdesc">${p.desc}</div></div>
+      <button class="buybtn" style="margin-left:auto;padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:800;background:linear-gradient(180deg,#fff0be,#dca93d);color:#231a05">🪙 ${price} 购买</button>`;
+    const btn = box.querySelector("button"); btn.disabled = R.gold < price || R.potions.length >= 3;
+    btn.addEventListener("click", () => { if(R.gold < price || R.potions.length >= 3) return; R.gold -= price; givePotion(pid); SFX.coin();
+      box.style.opacity = .35; btn.disabled = true; toast(`🛒 买下了药水「${p.name}」`); syncTopbar(); refreshShop(); });
+    $("shoppotion").appendChild(box); }
   $("shopdeck").style.display = "none";
   refreshShop(); openPanel("panel-shop");
 }
@@ -2072,10 +2592,10 @@ $("shopremove").addEventListener("click", () => {
   if(shopState.removed || R.gold < 75) return;
   $("shopdeck").style.display = "block";
   deckGridInto(document.querySelector(".shopgrid"), true, i => {
-    R.gold -= 75; R.deck.splice(i, 1); shopState.removed = true;
+    R.gold -= 75; R.deck.splice(i, 1); shopState.removed = true; SFX.coin();
     toast("🗑 已将一张牌移出牌组"); $("shopdeck").style.display = "none"; syncTopbar(); refreshShop(); });
 });
-$("shopleave").addEventListener("click", () => { closePanels(); nodeCleared(); });
+$("shopleave").addEventListener("click", () => { SFX.click(); closePanels(); nodeCleared(); });
 
 const EVENTS = [
   { icon:"🩸", title:"血祭坛", desc:"一座仍在滴血的石坛。坛上的铭文写着：以血换力，公平交易。",
@@ -2128,14 +2648,15 @@ function openEvent(){
 
 /* ================= AUTOTEST ================= */
 window.__state = () => ({ act: R ? R.act : 0, hp: R ? R.hp : 0, gold: R ? R.gold : 0,
-  deck: R ? R.deck.length : 0, relics: R ? R.relics.length : 0, pos: R ? R.pos : null,
-  ehp: C ? C.hp : null, turn: C ? C.turn : null, busy: C ? C.busy : null,
+  deck: R ? R.deck.length : 0, relics: R ? R.relics.length : 0, potions: R ? R.potions.length : 0, pos: R ? R.pos : null,
+  ehp: C ? C.hp : null, turn: C ? C.turn : null, busy: C ? C.busy : null, fury: C ? C.fury : 0, lastEl: C ? C.lastEl : null,
   screen: document.querySelector(".screen.on") ? document.querySelector(".screen.on").id : "none",
   banner: $("banner").style.display === "flex",
   panel: (document.querySelector(".panelwrap.on") || {}).id || "none" });
 if(new URLSearchParams(location.search).has("autotest")){
   setInterval(() => {
     if($("banner").style.display === "flex"){ window.__autoDone = $("bannertitle").textContent; return; }
+    if($("panel-blessing").classList.contains("on")){ const bc = $("blessrow").querySelector(".blesscard"); if(bc) bc.click(); return; }
     if($("screen-start").classList.contains("on")){ $("startbtn").click(); return; }
     if($("panel-reward").classList.contains("on")){
       if($("rewardgo").style.display !== "none"){ $("rewardgo").click(); }
@@ -2145,6 +2666,7 @@ if(new URLSearchParams(location.search).has("autotest")){
     if($("panel-event").classList.contains("on")){ const b = $("eventchoices").querySelector("button"); if(b) b.click(); return; }
     if($("panel-deck").classList.contains("on")){ closePanels(); return; }
     if($("screen-combat").classList.contains("on") && C && !C.busy && !C.over){
+      if(C.fury >= 100){ $("burstbtn").click(); return; }
       const cards = [...document.querySelectorAll("#hand .card")];
       const playable = cards.filter(el => !el.classList.contains("unplayable"));
       if(playable.length){ playable.sort((a,b) => CARDS[C.hand[+b.dataset.hidx].inst.id].cost - CARDS[C.hand[+a.dataset.hidx].inst.id].cost);
